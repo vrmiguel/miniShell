@@ -4,5 +4,7 @@ Implementation (in works) of a basic Unix shell written in C as the first progra
 
 Group: 
   Vinícius Rodrigues Miguel
-  Lucas Saavedra Vaz
+  
+  Lucas Saavedra Vaz (@lucasssvaz on Github)
+  
   Gustavo Bárbaro de Oliveira
