@@ -1,2 +1,8 @@
 # miniShell
-Implementation of a basic Unix shell written in C.
+
+Implementation (in works) of a basic Unix shell written in C as the first programming exercise for the Operational Systems course at the Federal University of São Paulo, under Prof. Bruno Kimura, Ph.D.
+
+Group: 
+  Vinícius Rodrigues Miguel
+  Lucas Saavedra Vaz
+  Gustavo Bárbaro de Oliveira
