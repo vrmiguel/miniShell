@@ -4,4 +4,4 @@ Implementation (W.I.P.) of a basic Unix shell written in C as the first programm
 
 By:
 
-   Vinícius Rodrigues Miguel ([vrmiguel](https://github.com/vrmiguel)), Lucas Saavedra Vaz ([lucasssvaz](https://github.com/lucasssvaz)) & Gustavo Bárbaro de Oliveira.
+   Vinícius Rodrigues Miguel ([vrmiguel](https://github.com/vrmiguel)), Lucas Saavedra Vaz ([lucasssvaz](https://github.com/lucasssvaz)) & Gustavo Bárbaro de Oliveira ([GustavoBarbaro](https://github.com/GustavoBarbaro)).
