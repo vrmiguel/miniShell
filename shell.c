@@ -12,8 +12,17 @@
 #include <errno.h>
 #include <pwd.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 
 #define true 1
+#define colorRed "\x1b[31m"
+#define colorBlue "\x1b[34m"
+
+/* 
+    casos com erro: "ls" --> 
+
+*/
+
 
     //Protótipos - Function signatures
 char *getInput();
@@ -27,10 +36,9 @@ int simpleCommand(char ** parsed);
 char * getCurrentDirNameOnly (); 
 
     //Variáveis globais
-
-char* acceptableCommands[] = {"ls", "quit", "tryhard"};
-char * userName; // guardará o nome do usuário, com no máximo 32 caracteres, como estipulado pela biblioteca GNU C (glibc).
-int acceptableCommandsNo = 2;
+char* acceptableCommands[] = {"ls", "quit", "tryhard"}; // TODO: deletar
+char userName[32]; // guardará o nome do usuário, com no máximo 32 caracteres, como estipulado pela biblioteca GNU C (glibc).
+int acceptableCommandsNo = 2; // TODO: deletar
 int parsedItemsNo; // quantidade de palavras tokenizadas na string atual
 char cwd[BUFSIZ]; /* Inicializa string para pasta atual, respeitando o limite máximo de caracteres que o stdin pode transferir */
 char * currentDirName;// Deverá ser inicializada em initialize() e então só modificada em changeDirectory()
@@ -38,7 +46,6 @@ char * currentDirName;// Deverá ser inicializada em initialize() e então só m
 int main(int argv, char **argc)
 {
     initialize();
-    getCurrentDirNameOnly(); 
     while (true)
     {
         typePrompt(); // Exibe prompt padrão de digitação
@@ -77,7 +84,7 @@ char *getInput()
 char **parser(char *input)
 {
     char **parsed = malloc(sizeof(char *)); //Aloca espaço para primeira palavra
-    char *token = strtok(input, " "); // Cria primeiro token e mantém o ponteiro input em estado interno
+    char *token = strtok(input, " "); // Cria primeiro token (separador " ") e mantém o ponteiro input em estado interno
     int i = 0;
     parsed[0] = token; // Inicializa parsed com o primeiro token
 
@@ -95,23 +102,27 @@ char **parser(char *input)
     }
     printf("ParsedListSize = %d\n", i);
     parsedItemsNo = i+1; // Registra quantas palavras foram tokenizadas
+    
+    for(int i = 0; i<parsedItemsNo; i++)
+        printf("t: %s\n", parsed[i]);
+
+
     return parsed;
 }
 
 int run(char ** parsed) // EM TESTE, NÃO FUNCIONA
 {
-    pid_t testPID; // valor para teste pai/filho
-    int i, foundIndex = -1;
-  //  int strLengthparsed = strlen(parsed[0]);
-    
-    if((parsed[0], "ls"))
+    int i, sizeFirstWord = sizeof(parsed[0]);
+
+    if(strcmp(parsed[0], "ls"))
         return simpleCommand(parsed);
-    else if(strcmp(parsed[0], "quit"))
-        return -1;
-    else if(strcmp(parsed[0], "cd"))
+    else if(strcmp(parsed[0], "ifconfig"))
+        return simpleCommand(parsed);
+    else if(stringCompare(sizeFirstWord, parsed[0], "cd"))
         return changeDirectory(parsed);
     //else if(strcmp(parsed[0], ""))
     //else if(strcmp(parsed[0], ""))
+
 
     //execvp(parsed[0], parsed);
     //printf("%s", acceptableCommands[2]);
@@ -120,8 +131,7 @@ int run(char ** parsed) // EM TESTE, NÃO FUNCIONA
 
 void typePrompt()
 {
-    printf("\n\n\n teste : :: : %s", currentDirName);
-    printf("%s@%s:~$/%s", userName, userName, currentDirName);
+    printf("%s@%s:~/%s$ ", userName, userName, currentDirName);
 }
 
 int stringCompare(int str1Length, char* str1, char* str2) // não usado, possivelmente será excluído
@@ -130,38 +140,52 @@ int stringCompare(int str1Length, char* str1, char* str2) // não usado, possive
     if (a != strlen(str2))
         return 0;
     
-    for(int i = 0; i<a; i++)
-    {  
+    for(int i = 0; i<a; i++)  
         if(str1[i] != str2[i])
-            return 0;
-    }
+            return 0; 
     return 1;
 }
 
-int changeDir(char ** parsed)
+int changeDirectory(char ** parsed)
 {
-
-    return 0; // TODO
+    printf("Entrou ?");
+    if(parsed[1] == NULL || parsed[1] == "~" || strcmp(parsed[1],".."))
+        chdir(getenv("HOME"));
+    
+    else
+        chdir(parsed[1]);
+    
+    currentDirName = getCurrentDirNameOnly();
+    getcwd(cwd, BUFSIZ);//Grava o nome da pasta atual - TODO - desnecessário ?
+    return 1;
 }
 
 void initialize()
 {
     printf("\n   -------- miniShell --------\n\nVinícius R. Miguel, Lucas S. Vaz & Gustavo B. de Oliveira\ngithub.com/vrmiguel/miniShell -- Unifesp -- Março de 2019\n\n");
     getcwd(cwd, BUFSIZ); //Grava o nome da pasta atual
-    printf("CWD: %s\n", cwd);
+    //printf("CWD: %s\n", cwd);
     currentDirName = getCurrentDirNameOnly(); // Formata a string da pasta atual para exibição em typePrompt()
-    printf("Current Dir: %s\n", currentDirName);
+    //printf("Current Dir: %s\n", currentDirName);
     
     uid_t uid = geteuid();
     struct passwd *pw = getpwuid(uid);
-    userName = pw->pw_name;
-
-    printf("Username: %s\n", userName);
+    strcpy(userName, pw->pw_name);
+    //printf("\n\n\n%s\n\n\n", pw->pw_name);
+    //userName = pw->pw_name;
 }
 
 int simpleCommand(char ** parsed)
 {
-    return 0; // TODO
+    pid_t testPID; // valor para teste pai/filho
+    testPID = fork();
+    int * status;
+
+    if ( testPID == 0 )
+        execvp(parsed[0], parsed);
+    else
+        waitpid(-1, status, 0);
+    return 1; // sucesso
 }
 
     /* Processa a variável cwd para posterior exibição correta em typePrompt() 
@@ -172,10 +196,10 @@ char * getCurrentDirNameOnly ()
     getcwd(stringAux, BUFSIZ);
 
     char *aux;
-    char *token = strtok(stringAux, "/");
+    char *token = strtok(stringAux, "/"); // Cria primeiro token (separador "/") e mantém o ponteiro stringAux em estado interno.
     for(;;)
     {
-        token = strtok(NULL, "/"); 
+        token = strtok(NULL, "/"); // Adiciona mais um token do ponteiro em estado interno (stringAux).
         if(token == NULL)
             break;
         aux = token;
