@@ -10,7 +10,8 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
-
+#include <pwd.h>
+#include <sys/types.h>
 
 #define true 1
 
@@ -18,34 +19,37 @@
 char *getInput();
 char **parser(char *input);
 void typePrompt();
-void printWelcome();
 int run(char ** parsed);
-int strcmpr(char * str1, char *str2);
-
+int stringCompare(int str1Length, char * str1, char *str2);
+int changeDirectory(char ** parsed);
+void initialize();
+int simpleCommand(char ** parsed);
+char * getCurrentDirNameOnly (); 
 
     //Variáveis globais
-//char* acceptableCommands[] = {"ifconfig", "ls", "quit"};
-char* acceptableCommands[] = {"ls", "quit"};
+
+char* acceptableCommands[] = {"ls", "quit", "tryhard"};
+char * userName; // guardará o nome do usuário, com no máximo 32 caracteres, como estipulado pela biblioteca GNU C (glibc).
 int acceptableCommandsNo = 2;
 int parsedItemsNo; // quantidade de palavras tokenizadas na string atual
+char cwd[BUFSIZ]; /* Inicializa string para pasta atual, respeitando o limite máximo de caracteres que o stdin pode transferir */
+char * currentDirName;// Deverá ser inicializada em initialize() e então só modificada em changeDirectory()
 
 int main(int argv, char **argc)
 {
-    //char* input;
-    //char** parsed;
-    printWelcome();
-    char cwd[BUFSIZ]; /* Inicializa string para pasta atual, respeitando o limite máximo de caracteres que o stdin pode transferir */
+    initialize();
+    getCurrentDirNameOnly(); 
     while (true)
     {
-        typePrompt(); // Exibe "~$ "
+        typePrompt(); // Exibe prompt padrão de digitação
         int ret; // Variável para teste de retorno de execução | execution r
         char *input = getInput(); // Adquira input
-        getcwd(cwd, sizeof(cwd)); //Grava o nome da pasta atual
         char **parsed = parser(input);
         ret = run(parsed);
         free(input); //Libera memória alocada para input e parsed
         free(parsed);
     }
+
     return 0;
 }
 
@@ -79,7 +83,7 @@ char **parser(char *input)
 
     // printf("Do Parser: %s\n", parsed[0]); // teste
 
-    for (;;)
+    for (;;) // loop infinito de uma maneira chic :)
     {
         token = strtok(NULL, " "); //Continua criando tokens do ponteiro em estado interno
         if (token == NULL) //Caso encontrada o fim da string original, feche o loop
@@ -97,17 +101,17 @@ char **parser(char *input)
 int run(char ** parsed) // EM TESTE, NÃO FUNCIONA
 {
     pid_t testPID; // valor para teste pai/filho
-    int i, aux, foundIndex = -1;
-    if(parsedItemsNo<=acceptableCommandsNo)
-      aux = acceptableCommandsNo;
-    else
-      aux = parsedItemsNo;
-
-    for(i=0; i<aux-1; i++)
-    {
-        if( !strcmpr(parsed[i], acceptableCommands[i]) )
-            printf("Deu certo com %d\n", i);
-    }
+    int i, foundIndex = -1;
+  //  int strLengthparsed = strlen(parsed[0]);
+    
+    if((parsed[0], "ls"))
+        return simpleCommand(parsed);
+    else if(strcmp(parsed[0], "quit"))
+        return -1;
+    else if(strcmp(parsed[0], "cd"))
+        return changeDirectory(parsed);
+    //else if(strcmp(parsed[0], ""))
+    //else if(strcmp(parsed[0], ""))
 
     //execvp(parsed[0], parsed);
     //printf("%s", acceptableCommands[2]);
@@ -116,17 +120,65 @@ int run(char ** parsed) // EM TESTE, NÃO FUNCIONA
 
 void typePrompt()
 {
-    printf("~$ ");
+    printf("\n\n\n teste : :: : %s", currentDirName);
+    printf("%s@%s:~$/%s", userName, userName, currentDirName);
 }
 
-void printWelcome()
+int stringCompare(int str1Length, char* str1, char* str2) // não usado, possivelmente será excluído
+{
+    int a = strlen(str1);
+    if (a != strlen(str2))
+        return 0;
+    
+    for(int i = 0; i<a; i++)
+    {  
+        if(str1[i] != str2[i])
+            return 0;
+    }
+    return 1;
+}
+
+int changeDir(char ** parsed)
+{
+
+    return 0; // TODO
+}
+
+void initialize()
 {
     printf("\n   -------- miniShell --------\n\nVinícius R. Miguel, Lucas S. Vaz & Gustavo B. de Oliveira\ngithub.com/vrmiguel/miniShell -- Unifesp -- Março de 2019\n\n");
+    getcwd(cwd, BUFSIZ); //Grava o nome da pasta atual
+    printf("CWD: %s\n", cwd);
+    currentDirName = getCurrentDirNameOnly(); // Formata a string da pasta atual para exibição em typePrompt()
+    printf("Current Dir: %s\n", currentDirName);
+    
+    uid_t uid = geteuid();
+    struct passwd *pw = getpwuid(uid);
+    userName = pw->pw_name;
+
+    printf("Username: %s\n", userName);
 }
 
-int strcmpr(char* s1, char* s2)
+int simpleCommand(char ** parsed)
 {
-    while(*s1 && (*s1==*s2))
-        s1++,s2++;
-    return *(unsigned char*)s1-*(unsigned char*)s2;
+    return 0; // TODO
+}
+
+    /* Processa a variável cwd para posterior exibição correta em typePrompt() 
+        exemplo: "/home/vinicius/Downloads" --> "/Downloads                 */
+char * getCurrentDirNameOnly () 
+{
+    char stringAux[BUFSIZ];
+    getcwd(stringAux, BUFSIZ);
+
+    char *aux;
+    char *token = strtok(stringAux, "/");
+    for(;;)
+    {
+        token = strtok(NULL, "/"); 
+        if(token == NULL)
+            break;
+        aux = token;
+    }
+    return aux;
 }
