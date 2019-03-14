@@ -44,7 +44,8 @@ char * getCurrentDirNameOnly ();
 
     //Variáveis globais
 char* acceptableCommands[] = {"ls", "quit", "tryhard"}; // TODO: deletar
-char userName[32]; // guardará o nome do usuário, com no máximo 32 caracteres, como estipulado pela biblioteca GNU C (glibc).
+char username[32]; // guardará o nome do usuário, com no máximo 32 caracteres, como estipulado pela biblioteca GNU C (glibc).
+char hostname[64]; // guardará o nome do host, com no máximo 64 caracteres, como estipulado pela biblioteca GNU C (getconf HOST_NAME_MAX)
 int acceptableCommandsNo = 2; // TODO: deletar
 int parsedItemsNo; // quantidade de palavras tokenizadas na string atual
 char cwd[BUFSIZ]; /* Inicializa string para pasta atual, respeitando o limite máximo de caracteres que o stdin pode transferir */
@@ -144,7 +145,7 @@ int run(char ** parsed) // EM TESTEs
 
 void typePrompt()
 {
-    printf("%s@%s:/%s$ ", userName, userName, currentDirName);
+    printf("%s@%s:/%s$ ", username, hostname, currentDirName);
 }
 
 int stringCompare(int str1Length, char* str1, char* str2) // não usado, possivelmente será excluído
@@ -186,9 +187,10 @@ void initialize()
     
     uid_t uid = geteuid();
     struct passwd *pw = getpwuid(uid);
-    strcpy(userName, pw->pw_name);
+    strcpy(username, pw->pw_name);
+    gethostname(hostname, 64);
     //printf("\n\n\n%s\n\n\n", pw->pw_name);
-    //userName = pw->pw_name;
+    //username = pw->pw_name;
 }
 
 int simpleCommand(char ** parsed)
