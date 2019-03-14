@@ -1,4 +1,4 @@
-/*
+﻿/*
     miniShell (https://github.com/vrmiguel/miniShell)
     By Vinícius R. Miguel, Lucas Saavedra Vaz and Gustavo Bárbaro de Oliveira
     Prof. Bruno Kimura, Ph.D.
@@ -19,8 +19,15 @@
 #define colorBlue "\x1b[34m"
 
 /* 
-    casos com erro: "ls" --> 
+    casos com erro: "ls" --> não é possível acessar ''$'\350''+'$'\307'')'$'\201\177': Arquivo ou diretório não encontrado
+                    "ifconfig" --> erro obtendo informações da interface: %s: dispositivo não encontrado
+                    "cd Área\ de\ Trabalho/" --> se torna irresponsivo (possível limitação de chdir com utf-8)
 
+    comandos implementados (ou quase lá):
+        cd
+        ls
+        pwd
+        quit
 */
 
 
@@ -55,8 +62,10 @@ int main(int argv, char **argc)
         ret = run(parsed);
         free(input); //Libera memória alocada para input e parsed
         free(parsed);
+        if (ret == -1)
+            break;
     }
-
+    printf("Finalizando miniShell\n");
     return 0;
 }
 
@@ -100,26 +109,30 @@ char **parser(char *input)
         parsed[i] = token;
         //printf("Do Parser: %s\n", parsed[i]); // print de teste
     }
-    printf("ParsedListSize = %d\n", i);
-    parsedItemsNo = i+1; // Registra quantas palavras foram tokenizadas
     
-    for(int i = 0; i<parsedItemsNo; i++)
-        printf("t: %s\n", parsed[i]);
+    parsedItemsNo = i+1; // Registra quantas palavras foram tokenizadas
 
-
+    //for(int i = 0; i<parsedItemsNo; i++)
+    //    printf("t: %s\n", parsed[i]);
     return parsed;
 }
 
-int run(char ** parsed) // EM TESTE, NÃO FUNCIONA
+int run(char ** parsed) // EM TESTEs
 {
-    int i, sizeFirstWord = sizeof(parsed[0]);
+    int i, sizeFirstWord = strlen(parsed[0]);
 
-    if(strcmp(parsed[0], "ls"))
+    if(stringCompare(sizeFirstWord, parsed[0], "ls"))
         return simpleCommand(parsed);
-    else if(strcmp(parsed[0], "ifconfig"))
+    else if(stringCompare(sizeFirstWord, parsed[0], "ifconfig"))
         return simpleCommand(parsed);
     else if(stringCompare(sizeFirstWord, parsed[0], "cd"))
         return changeDirectory(parsed);
+    else if(stringCompare(sizeFirstWord, parsed[0], "quit"))
+        return -1;
+    else if(stringCompare(sizeFirstWord, parsed[0], "pwd"))
+        printf("%s\n", cwd);
+        return 1;
+    
     //else if(strcmp(parsed[0], ""))
     //else if(strcmp(parsed[0], ""))
 
@@ -131,7 +144,7 @@ int run(char ** parsed) // EM TESTE, NÃO FUNCIONA
 
 void typePrompt()
 {
-    printf("%s@%s:~/%s$ ", userName, userName, currentDirName);
+    printf("%s@%s:/%s$ ", userName, userName, currentDirName);
 }
 
 int stringCompare(int str1Length, char* str1, char* str2) // não usado, possivelmente será excluído
@@ -148,14 +161,17 @@ int stringCompare(int str1Length, char* str1, char* str2) // não usado, possive
 
 int changeDirectory(char ** parsed)
 {
-    printf("Entrou ?");
-    if(parsed[1] == NULL || parsed[1] == "~" || strcmp(parsed[1],".."))
+    if(parsedItemsNo == 1 || !strcmp(parsed[1],"~") || !strcmp(parsed[1],".."))
+    {
         chdir(getenv("HOME"));
-    
+        char * aux = "";
+        currentDirName = aux;
+    }
     else
+    {
         chdir(parsed[1]);
-    
-    currentDirName = getCurrentDirNameOnly();
+        currentDirName = getCurrentDirNameOnly();
+    }
     getcwd(cwd, BUFSIZ);//Grava o nome da pasta atual - TODO - desnecessário ?
     return 1;
 }
