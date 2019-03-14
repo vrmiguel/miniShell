@@ -24,9 +24,11 @@
                     "cd Área\ de\ Trabalho/" --> se torna irresponsivo (possível limitação de chdir com utf-8)
 
     comandos implementados (ou quase lá):
-        cd
-        ls
+        cd (problema com nomes utf-8)
+        ls (problema quando chamado sem argumento)
         pwd
+        ping (precisa de Ctrl+C para terminar sua execução, o que também termina o miniShell)
+        nano
         quit
 */
 
@@ -118,7 +120,7 @@ char **parser(char *input)
     return parsed;
 }
 
-int run(char ** parsed) // EM TESTEs
+int run(char ** parsed) // EM TESTE
 {
     int i, sizeFirstWord = strlen(parsed[0]);
 
@@ -129,18 +131,29 @@ int run(char ** parsed) // EM TESTEs
     else if(stringCompare(sizeFirstWord, parsed[0], "cd"))
         return changeDirectory(parsed);
     else if(stringCompare(sizeFirstWord, parsed[0], "quit"))
-        return -1;
-    else if(stringCompare(sizeFirstWord, parsed[0], "pwd"))
+        return -1; 
+    else if(stringCompare(sizeFirstWord, parsed[0], "pwd")) 
+    {
         printf("%s\n", cwd);
         return 1;
-    
+    }
+    else if(stringCompare(sizeFirstWord, parsed[0], "clear"))
+    {
+        /* O printf abaixo executa um código de escape ANSI para limpar a tela e cursor*/
+        printf("\e[2J\e[H");
+        return 1;
+    }
+    else if(stringCompare(sizeFirstWord, parsed[0], "ping") || stringCompare(sizeFirstWord, parsed[0], "nano"))
+        return simpleCommand(parsed);
+
     //else if(strcmp(parsed[0], ""))
     //else if(strcmp(parsed[0], ""))
 
+    printf("Comando não encontrado.\n");
+    return 2;
 
     //execvp(parsed[0], parsed);
     //printf("%s", acceptableCommands[2]);
-    return 1;
 }
 
 void typePrompt()
@@ -170,8 +183,16 @@ int changeDirectory(char ** parsed)
     }
     else
     {
-        chdir(parsed[1]);
         currentDirName = getCurrentDirNameOnly();
+        
+        //for(int i=0; i<sizeof(parsed[1]); i++)
+        //{
+        //  if
+
+
+        //}
+        chdir(parsed[1]);
+        
     }
     getcwd(cwd, BUFSIZ);//Grava o nome da pasta atual - TODO - desnecessário ?
     return 1;
@@ -196,6 +217,7 @@ void initialize()
 int simpleCommand(char ** parsed)
 {
     pid_t testPID; // valor para teste pai/filho
+    
     testPID = fork();
     int * status;
 
@@ -207,7 +229,7 @@ int simpleCommand(char ** parsed)
 }
 
     /* Processa a variável cwd para posterior exibição correta em typePrompt() 
-        exemplo: "/home/vinicius/Downloads" --> "/Downloads                 */
+        exemplo: "/home/vinicius/Downloads" --> "/Downloads"                 */
 char * getCurrentDirNameOnly () 
 {
     char stringAux[BUFSIZ];
