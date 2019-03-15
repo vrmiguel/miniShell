@@ -35,9 +35,6 @@
         cd (problema com nomes utf-8)
         ls (problema quando chamado sem argumento)
         ping (precisa de Ctrl+C para terminar sua execução, o que também termina o miniShell)
-
-
-
     TO-DO:
         mkdir
         chmod
@@ -54,7 +51,8 @@ int stringCompare(int str1Length, char * str1, char *str2);
 int changeDir(char ** parsed);
 void initialize();
 int simpleCommand(char ** parsed);
-char * getCurrentDirNameOnly ();
+char * getCurrentDirNameOnly();
+void stringConcatenate (char *dest, char *src);
 
     //Variáveis globais
 char* acceptableCommands[] = {"ls", "quit", "tryhard"}; // TODO: deletar
@@ -91,9 +89,7 @@ char *getInput()
     char *input = (char *) malloc(sizeof(char)); //Aloca espaço para primeira letra
     char c = getchar(); // Recebe primeira letra..
     input[0] = c;       //..e inicializa input com ela.
-
     int i = 1;
-
     while (((c = getchar()) != '\n') && (c != EOF) && (i < BUFSIZ - 2))
     {
         input = realloc(input, (i+1)*sizeof(char)); // Aloca espaço para mais uma letra
@@ -155,7 +151,7 @@ int run(char ** parsed) // EM TESTE
         printf("\e[2J\e[H");
         return 1;
     }
-    else if(stringCompare(sizeFirstWord, parsed[0], "ping") || stringCompare(sizeFirstWord, parsed[0], "nano") || stringCompare(sizeFirstWord, parsed[0], "echo"))
+    else if(stringCompare(sizeFirstWord, parsed[0], "ping") || stringCompare(sizeFirstWord, parsed[0], "nano") || stringCompare(sizeFirstWord, parsed[0], "echo") || stringCompare(sizeFirstWord, parsed[0], "python3"))
         return simpleCommand(parsed);
 
     //else if(strcmp(parsed[0], ""))
@@ -189,22 +185,27 @@ int changeDir(char ** parsed)
     if(parsedItemsNo == 1 || !strcmp(parsed[1],"~") || !strcmp(parsed[1],"..")) // Comandos padrão para retorno para home
     {
         /* procura o ambiente do processo chamante pela variável HOME para que o chdir possa mudar o ambiente da execução para pasta HOMEs */
-        printf("Entrou aqui ?");
+        printf("Exibição de teste: chdir\n");
         chdir(getenv("HOME"));
         //char * aux = "";
         currentDirName = "";
     }
     else
     {
-        //for(int i=0; i<sizeof(parsed[1]); i++)
-        //{
-        //  if
-        printf("%d", parsedItemsNo);
+        printf("parsedItemsNo: %d\n", parsedItemsNo);
+        for(int i = 0; i<parsedItemsNo; i++)
+            printf("parsed[%d] = %s\n", i, parsed[i]);
+
+        printf("Iniciando concatenação\n\n");
 
         for(int i=2; i<parsedItemsNo; i++)
         {
-            strcat(parsed[1], " \\");
+            //strcat(parsed[1], " ");
+            printf("parsed[%d] = %s\n", i, parsed[i]);
+            printf("strlen(parsed[%d]): %zu\n", i, strlen(parsed[i]));
+            //strcat(parsed[1], " ");
             strcat(parsed[1], parsed[i]);
+            printf("Novo parsed[1]: %s, quando i=%d\n", parsed[1], i);
         }
 
         printf("%s\n", parsed[1]);
@@ -240,13 +241,12 @@ int simpleCommand(char ** parsed)
 {
     pid_t testPID; // valor para teste pai/filho
 
-    printf("Entrou aqui? %s \n", parsed[1]);
+    printf("Entrou aqui? 2  %s \n", parsed[1]);
     testPID = fork();
     int * status;
     if ( testPID == 0 )
         execvp(parsed[0], parsed);
     else if (testPID < 0)
-    {
         printf("Erro ao produzir fork.");
         return -1;
     }
@@ -271,4 +271,9 @@ char * getCurrentDirNameOnly ()
         aux = token;
     }
     return aux;
+}
+
+void stringConcatenate (char *dest, char *src)
+{
+  strcpy (dest + strlen (dest), src);
 }
