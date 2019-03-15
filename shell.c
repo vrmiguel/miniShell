@@ -20,8 +20,10 @@
 
 /* 
     casos com erro: "ls" --> não é possível acessar ''$'\350''+'$'\307'')'$'\201\177': Arquivo ou diretório não encontrado
+                    "ls -l -a" --> sem retorno. ls -la funcionaria, no entanto
                     "ifconfig" --> erro obtendo informações da interface: %s: dispositivo não encontrado
                     "cd Área\ de\ Trabalho/" --> se torna irresponsivo (possível limitação de chdir com utf-8)
+                    "who" --> não exibe nada para qualquer caso
 
     comandos implementados (ou quase lá):
         cd (problema com nomes utf-8)
@@ -143,7 +145,7 @@ int run(char ** parsed) // EM TESTE
         printf("\e[2J\e[H");
         return 1;
     }
-    else if(stringCompare(sizeFirstWord, parsed[0], "ping") || stringCompare(sizeFirstWord, parsed[0], "nano"))
+    else if(stringCompare(sizeFirstWord, parsed[0], "ping") || stringCompare(sizeFirstWord, parsed[0], "nano") || stringCompare(sizeFirstWord, parsed[0], "echo"))
         return simpleCommand(parsed);
 
     //else if(strcmp(parsed[0], ""))
