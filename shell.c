@@ -17,10 +17,11 @@
 
 
 #define true 1
-#define colorRed "\x1b[31m"
-#define colorBlue "\x1b[34m"
+#define colorRed "\x1b[31m" //Código de escape ANSI para a cor vermelha
+#define colorBlue "\x1b[34m" // Código de escape ANSI para a cor azul
+#define colorReset   "\x1b[0m" // Código de escape ANSI para voltar a exibição para a cor padrão do stdout
 
-/* 
+/*
     casos com erro: "ls" --> não é possível acessar ''$'\350''+'$'\307'')'$'\201\177': Arquivo ou diretório não encontrado
                     "ls -l -a" --> sem retorno. ls -la funcionaria, no entanto
                     "ifconfig" --> erro obtendo informações da interface: %s: dispositivo não encontrado
@@ -28,12 +29,19 @@
                     "who" --> não exibe nada para qualquer caso
 
     comandos implementados (ou quase lá):
+        pwd (O.K.)
+        nano (O.K.)
+        quit (O.K.)
         cd (problema com nomes utf-8)
         ls (problema quando chamado sem argumento)
-        pwd
         ping (precisa de Ctrl+C para terminar sua execução, o que também termina o miniShell)
-        nano
-        quit
+
+
+
+    TO-DO:
+        mkdir
+        chmod
+
 */
 
 
@@ -46,7 +54,7 @@ int stringCompare(int str1Length, char * str1, char *str2);
 int changeDir(char ** parsed);
 void initialize();
 int simpleCommand(char ** parsed);
-char * getCurrentDirNameOnly (); 
+char * getCurrentDirNameOnly ();
 
     //Variáveis globais
 char* acceptableCommands[] = {"ls", "quit", "tryhard"}; // TODO: deletar
@@ -116,7 +124,7 @@ char **parser(char *input)
         parsed[i] = token;
         //printf("Do Parser: %s\n", parsed[i]); // print de teste
     }
-    
+
     parsedItemsNo = i+1; // Registra quantas palavras foram tokenizadas
 
     //for(int i = 0; i<parsedItemsNo; i++)
@@ -135,8 +143,8 @@ int run(char ** parsed) // EM TESTE
     else if(stringCompare(sizeFirstWord, parsed[0], "cd"))
         return changeDir(parsed);
     else if(stringCompare(sizeFirstWord, parsed[0], "quit"))
-        return -1; 
-    else if(stringCompare(sizeFirstWord, parsed[0], "pwd")) 
+        return -1;
+    else if(stringCompare(sizeFirstWord, parsed[0], "pwd"))
     {
         printf("%s\n", cwd);
         return 1;
@@ -162,7 +170,7 @@ int run(char ** parsed) // EM TESTE
 
 void typePrompt()
 {
-    printf("%s@%s:/%s$ ", username, hostname, currentDirName);
+    printf(colorBlue "%s@%s:~/" colorRed "%s" colorBlue "$ " colorReset, username, hostname, currentDirName);
 }
 
 int stringCompare(int str1Length, char* str1, char* str2) // não usado, possivelmente será excluído
@@ -170,9 +178,9 @@ int stringCompare(int str1Length, char* str1, char* str2) // não usado, possive
     int a = strlen(str1);
     if (a != strlen(str2))
         return 0;
-    for(int i = 0; i<a; i++)  
+    for(int i = 0; i<a; i++)
         if(str1[i] != str2[i])
-            return 0; 
+            return 0;
     return 1;
 }
 
@@ -181,29 +189,32 @@ int changeDir(char ** parsed)
     if(parsedItemsNo == 1 || !strcmp(parsed[1],"~") || !strcmp(parsed[1],"..")) // Comandos padrão para retorno para home
     {
         /* procura o ambiente do processo chamante pela variável HOME para que o chdir possa mudar o ambiente da execução para pasta HOMEs */
-        chdir(getenv("HOME")); 
+        printf("Entrou aqui ?");
+        chdir(getenv("HOME"));
         //char * aux = "";
         currentDirName = "";
     }
     else
-    {   
+    {
         //for(int i=0; i<sizeof(parsed[1]); i++)
         //{
         //  if
         printf("%d", parsedItemsNo);
-        /*
+
         for(int i=2; i<parsedItemsNo; i++)
         {
             strcat(parsed[1], " \\");
             strcat(parsed[1], parsed[i]);
         }
-        */
-        if(chdir(parsed[1])) 
+
+        printf("%s\n", parsed[1]);
+
+        if(chdir(parsed[1]))
         {
             // Se entrou aqui, houve algum erro na execução de chdir()
             printf("miniShell: cd: %s: Arquivo ou diretório não encontrado\n", parsed[1]);
         }
-        currentDirName = getCurrentDirNameOnly();   
+        currentDirName = getCurrentDirNameOnly();
     }
     getcwd(cwd, BUFSIZ);//Grava o nome da pasta atual - TODO - desnecessário ?
     return 1;
@@ -216,10 +227,10 @@ void initialize()
     //printf("CWD: %s\n", cwd);
     currentDirName = getCurrentDirNameOnly(); // Formata a string da pasta atual para exibição em typePrompt()
     //printf("Current Dir: %s\n", currentDirName);
-    
-    uid_t uid = geteuid();
-    struct passwd *pw = getpwuid(uid);
-    strcpy(username, pw->pw_name);
+
+    uid_t uid = geteuid(); // Adquire a ID efetiva do usuário que chamou o shell
+    struct passwd *pw = getpwuid(uid); // Procura o UID no banco de dado de senhas e retorna um ponteiro para uma struct passwd
+    strcpy(username, pw->pw_name); // Da struct passwd, salva-se o nome do usuário
     gethostname(hostname, 64);
     //printf("\n\n\n%s\n\n\n", pw->pw_name);
     //username = pw->pw_name;
@@ -228,20 +239,25 @@ void initialize()
 int simpleCommand(char ** parsed)
 {
     pid_t testPID; // valor para teste pai/filho
-    
+
+    printf("Entrou aqui? %s \n", parsed[1]);
     testPID = fork();
     int * status;
-
     if ( testPID == 0 )
         execvp(parsed[0], parsed);
+    else if (testPID < 0)
+    {
+        printf("Erro ao produzir fork.");
+        return -1;
+    }
     else
         waitpid(-1, status, 0);
     return 1; // sucesso
 }
 
-    /* Processa a variável cwd para posterior exibição correta em typePrompt() 
+    /* Processa a variável cwd para posterior exibição correta em typePrompt()
         exemplo: "/home/vinicius/Downloads" --> "/Downloads"                 */
-char * getCurrentDirNameOnly () 
+char * getCurrentDirNameOnly ()
 {
     char stringAux[BUFSIZ];
     getcwd(stringAux, BUFSIZ);
