@@ -13,6 +13,8 @@
 #include <pwd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
+
 
 #define true 1
 #define colorRed "\x1b[31m"
@@ -41,7 +43,7 @@ char **parser(char *input);
 void typePrompt();
 int run(char ** parsed);
 int stringCompare(int str1Length, char * str1, char *str2);
-int changeDirectory(char ** parsed);
+int changeDir(char ** parsed);
 void initialize();
 int simpleCommand(char ** parsed);
 char * getCurrentDirNameOnly (); 
@@ -53,7 +55,7 @@ char hostname[64]; // guardará o nome do host, com no máximo 64 caracteres, co
 int acceptableCommandsNo = 2; // TODO: deletar
 int parsedItemsNo; // quantidade de palavras tokenizadas na string atual
 char cwd[BUFSIZ]; /* Inicializa string para pasta atual, respeitando o limite máximo de caracteres que o stdin pode transferir */
-char * currentDirName;// Deverá ser inicializada em initialize() e então só modificada em changeDirectory()
+char * currentDirName;// Deverá ser inicializada em initialize() e então só modificada em changeDir()
 
 int main(int argv, char **argc)
 {
@@ -124,14 +126,14 @@ char **parser(char *input)
 
 int run(char ** parsed) // EM TESTE
 {
-    int i, sizeFirstWord = strlen(parsed[0]);
+    int sizeFirstWord = strlen(parsed[0]);
 
     if(stringCompare(sizeFirstWord, parsed[0], "ls"))
         return simpleCommand(parsed);
     else if(stringCompare(sizeFirstWord, parsed[0], "ifconfig"))
         return simpleCommand(parsed);
     else if(stringCompare(sizeFirstWord, parsed[0], "cd"))
-        return changeDirectory(parsed);
+        return changeDir(parsed);
     else if(stringCompare(sizeFirstWord, parsed[0], "quit"))
         return -1; 
     else if(stringCompare(sizeFirstWord, parsed[0], "pwd")) 
@@ -168,33 +170,40 @@ int stringCompare(int str1Length, char* str1, char* str2) // não usado, possive
     int a = strlen(str1);
     if (a != strlen(str2))
         return 0;
-    
     for(int i = 0; i<a; i++)  
         if(str1[i] != str2[i])
             return 0; 
     return 1;
 }
 
-int changeDirectory(char ** parsed)
+int changeDir(char ** parsed)
 {
-    if(parsedItemsNo == 1 || !strcmp(parsed[1],"~") || !strcmp(parsed[1],".."))
+    if(parsedItemsNo == 1 || !strcmp(parsed[1],"~") || !strcmp(parsed[1],"..")) // Comandos padrão para retorno para home
     {
-        chdir(getenv("HOME"));
-        char * aux = "";
-        currentDirName = aux;
+        /* procura o ambiente do processo chamante pela variável HOME para que o chdir possa mudar o ambiente da execução para pasta HOMEs */
+        chdir(getenv("HOME")); 
+        //char * aux = "";
+        currentDirName = "";
     }
     else
-    {
-        currentDirName = getCurrentDirNameOnly();
-        
+    {   
         //for(int i=0; i<sizeof(parsed[1]); i++)
         //{
         //  if
-
-
-        //}
-        chdir(parsed[1]);
-        
+        printf("%d", parsedItemsNo);
+        /*
+        for(int i=2; i<parsedItemsNo; i++)
+        {
+            strcat(parsed[1], " \\");
+            strcat(parsed[1], parsed[i]);
+        }
+        */
+        if(chdir(parsed[1])) 
+        {
+            // Se entrou aqui, houve algum erro na execução de chdir()
+            printf("miniShell: cd: %s: Arquivo ou diretório não encontrado\n", parsed[1]);
+        }
+        currentDirName = getCurrentDirNameOnly();   
     }
     getcwd(cwd, BUFSIZ);//Grava o nome da pasta atual - TODO - desnecessário ?
     return 1;
@@ -236,7 +245,6 @@ char * getCurrentDirNameOnly ()
 {
     char stringAux[BUFSIZ];
     getcwd(stringAux, BUFSIZ);
-
     char *aux;
     char *token = strtok(stringAux, "/"); // Cria primeiro token (separador "/") e mantém o ponteiro stringAux em estado interno.
     for(;;)
