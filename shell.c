@@ -39,6 +39,9 @@
         mkdir
         chmod
 
+    para liberar:
+        parsed, input
+
 */
 
 
@@ -73,7 +76,11 @@ int main(int argv, char **argc)
         char *input = getInput(); // Adquira input
         char **parsed = parser(input);
         ret = run(parsed);
+        
         free(input); //Libera memória alocada para input e parsed
+        
+        for(int i=0; i<parsedItemsNo; i++)
+            free(parsed[i]);
         free(parsed);
         if (ret == -1)
             break;
@@ -95,18 +102,20 @@ char *getInput()
         input = realloc(input, (i+1)*sizeof(char)); // Aloca espaço para mais uma letra
         input[i] = c;    //Insere letra no vetor
         i++;
-    }
-    input[i] = '\0';    //Insere terminador de string.
+    }   
+    input = realloc(input, (i+1)*sizeof(char)); // Aloca espaço para terminador de string
+    input[i] = '\0';   //Insere terminador de string.
     return input;
 }
 
 /* Divide a string dada pela variável input  */
 char **parser(char *input)
 {
-    char **parsed = malloc(sizeof(char *)); //Aloca espaço para primeira palavra
+    char **parsed = malfEnloc(sizeof(char *)); //Aloca espaço para primeira palavra
     char *token = strtok(input, " "); // Cria primeiro token (separador " ") e mantém o ponteiro input em estado interno
     int i = 0;
-    parsed[0] = token; // Inicializa parsed com o primeiro token
+    parsed[0] = malloc(strlen(token)*sizeof(char));
+    strcpy(parsed[0],token); // Inicializa parsed com o primeiro token
 
     // printf("Do Parser: %s\n", parsed[0]); // teste
 
@@ -117,11 +126,13 @@ char **parser(char *input)
             break;
         i++;
         parsed = realloc(parsed, (i + 1) * sizeof(char *)); // Aloca espaço para mais uma palavra
-        parsed[i] = token;
+        parsed[i] = malloc(sizeof(char) * strlen(token));
+        strcpy(parsed[i], token);
         //printf("Do Parser: %s\n", parsed[i]); // print de teste
     }
 
     parsedItemsNo = i+1; // Registra quantas palavras foram tokenizadas
+    parsed[i+1] = NULL; // Necessário para ser argumento na família exec()
 
     //for(int i = 0; i<parsedItemsNo; i++)
     //    printf("t: %s\n", parsed[i]);
@@ -157,7 +168,7 @@ int run(char ** parsed) // EM TESTE
     //else if(strcmp(parsed[0], ""))
     //else if(strcmp(parsed[0], ""))
 
-    printf("Comando não encontrado.\n");
+    printf("%s: comando não encontrado\n", parsed[0]);
     return 2;
 
     //execvp(parsed[0], parsed);
@@ -180,7 +191,7 @@ int stringCompare(int str1Length, char* str1, char* str2) // não usado, possive
     return 1;
 }
 
-int changeDir(char ** parsed)
+int changeDir(char ** parsed) // currentDirName deve ser modificado
 {
     if(parsedItemsNo == 1 || !strcmp(parsed[1],"~") || !strcmp(parsed[1],"..")) // Comandos padrão para retorno para home
     {
@@ -247,6 +258,7 @@ int simpleCommand(char ** parsed)
     if ( testPID == 0 )
         execvp(parsed[0], parsed);
     else if (testPID < 0)
+    {
         printf("Erro ao produzir fork.");
         return -1;
     }
