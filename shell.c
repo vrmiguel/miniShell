@@ -111,7 +111,7 @@ char *getInput()
 /* Divide a string dada pela variável input  */
 char **parser(char *input)
 {
-    char **parsed = malfEnloc(sizeof(char *)); //Aloca espaço para primeira palavra
+    char **parsed = malloc(sizeof(char *)); //Aloca espaço para primeira palavra
     char *token = strtok(input, " "); // Cria primeiro token (separador " ") e mantém o ponteiro input em estado interno
     int i = 0;
     parsed[0] = malloc(strlen(token)*sizeof(char));
@@ -239,7 +239,6 @@ void initialize()
     //printf("CWD: %s\n", cwd);
     currentDirName = getCurrentDirNameOnly(); // Formata a string da pasta atual para exibição em typePrompt()
     //printf("Current Dir: %s\n", currentDirName);
-
     uid_t uid = geteuid(); // Adquire a ID efetiva do usuário que chamou o shell
     struct passwd *pw = getpwuid(uid); // Procura o UID no banco de dado de senhas e retorna um ponteiro para uma struct passwd
     strcpy(username, pw->pw_name); // Da struct passwd, salva-se o nome do usuário
