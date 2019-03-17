@@ -32,7 +32,7 @@
         pwd (O.K.)
         nano (O.K.)
         quit (O.K.)
-        cd (problema com nomes utf-8)
+        cd (problema com nomes utf-8 + problema com espaços)
         ls (problema quando chamado sem argumento)
         ping (precisa de Ctrl+C para terminar sua execução, o que também termina o miniShell)
     TO-DO:
@@ -69,7 +69,7 @@ char * currentDirName;// Deverá ser inicializada em initialize() e então só m
 int main(int argv, char **argc)
 {
     initialize();
-    while (true)
+    for (;;)
     {
         typePrompt(); // Exibe prompt padrão de digitação
         int ret; // Variável para teste de retorno de execução | execution r
@@ -175,6 +175,7 @@ int run(char ** parsed) // EM TESTE
     //printf("%s", acceptableCommands[2]);
 }
 
+    /* */
 void typePrompt()
 {
     printf(colorBlue "%s@%s:~/" colorRed "%s" colorBlue "$ " colorReset, username, hostname, currentDirName);
@@ -191,6 +192,7 @@ int stringCompare(int str1Length, char* str1, char* str2) // não usado, possive
     return 1;
 }
 
+    /* muda o diretório do processo pai */
 int changeDir(char ** parsed) // currentDirName deve ser modificado
 {
     if(parsedItemsNo == 1 || !strcmp(parsed[1],"~") || !strcmp(parsed[1],"..")) // Comandos padrão para retorno para home
@@ -211,22 +213,20 @@ int changeDir(char ** parsed) // currentDirName deve ser modificado
 
         for(int i=2; i<parsedItemsNo; i++)
         {
-            //strcat(parsed[1], " ");
-            printf("parsed[%d] = %s\n", i, parsed[i]);
-            printf("strlen(parsed[%d]): %zu\n", i, strlen(parsed[i]));
-            //strcat(parsed[1], " ");
+            strcat(parsed[1], "\\ ");
             strcat(parsed[1], parsed[i]);
             printf("Novo parsed[1]: %s, quando i=%d\n", parsed[1], i);
         }
 
-        printf("%s\n", parsed[1]);
+        strcat(parsed[1], "/");
 
         if(chdir(parsed[1]))
         {
             // Se entrou aqui, houve algum erro na execução de chdir()
             printf("miniShell: cd: %s: Arquivo ou diretório não encontrado\n", parsed[1]);
         }
-        currentDirName = getCurrentDirNameOnly();
+        else
+            currentDirName = getCurrentDirNameOnly(); // caso de sucesso
     }
     getcwd(cwd, BUFSIZ);//Grava o nome da pasta atual - TODO - desnecessário ?
     return 1;
