@@ -66,21 +66,6 @@ int parsedItemsNo; // quantidade de palavras tokenizadas na string atual
 char cwd[BUFSIZ]; /* Inicializa string para pasta atual, respeitando o limite máximo de caracteres que o stdin pode transferir */
 char * currentDirName;// Deverá ser inicializada em initialize() e então só modificada em changeDir()
 
-    // Definições de structs
-
-    /* */
-typedef struct process
-{
-  struct process *next;       /* next process in pipeline */
-  char **argv;                /* for exec */
-  pid_t pid;                  /* process ID */
-  int execution;             /* 1 se o processo foi concluído ou 2 se o processo foi  */
-
-  int status;                 /* reported status value */
-} process;
-
-
-
 int main(int argv, char **argc)
 {
     initialize();
