@@ -4,4 +4,4 @@ Implementation (work in progress) of a basic Unix shell written in C as the firs
 
 By:
 
-   Vinícius Rodrigues Miguel ([vrmiguel](https://github.com/vrmiguel)), Lucas Saavedra Vaz ([lucasssvaz](https://github.com/lucasssvaz)) & Gustavo Bárbaro de Oliveira ([GustavoBarbaro](https://github.com/GustavoBarbaro)).
+   Vinícius Rodrigues Miguel ([vrmiguel](https://github.com/vrmiguel)) & Gustavo Bárbaro de Oliveira ([GustavoBarbaro](https://github.com/GustavoBarbaro)).
