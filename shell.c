@@ -1,4 +1,4 @@
-﻿/*
+/*
     miniShell (https://github.com/vrmiguel/miniShell)
     By Vinícius R. Miguel and Gustavo Bárbaro de Oliveira
     Prof. Bruno Kimura, Ph.D.
@@ -97,9 +97,11 @@ char *getInput()
     char c = getchar(); // Recebe primeira letra..
     input[0] = c;       //..e inicializa input com ela.
     int i = 1;
+
+    /* Lê caracteres enquanto o usuário não pressiona Enter ou Ctrl-D e enquanto o comando de entrada não passa do tamanho máximo de buffer de stdin. */
     while (((c = getchar()) != '\n') && (c != EOF) && (i < BUFSIZ - 2))
     {
-        input = realloc(input, (i+1)*sizeof(char)); // Aloca espaço para mais uma letra
+        //input = realloc(input, (i+1)*sizeof(char)); // Aloca espaço para mais uma letra
         input[i] = c;    //Insere letra no vetor
         i++;
     }   
@@ -112,7 +114,9 @@ char *getInput()
 char **parser(char *input)
 {
     char **parsed = malloc(sizeof(char *)); //Aloca espaço para primeira palavra
-    char *token = strtok(input, " "); // Cria primeiro token (separador " ") e mantém o ponteiro input em estado interno
+    printf("input antes de tok: %s\n", input);
+    char * pos;
+    char *token = strtok_r(input, " ", &pos); // Cria primeiro token (separador " ") e ... TODO 
     int i = 0;
     parsed[0] = malloc(strlen(token)*sizeof(char));
     strcpy(parsed[0],token); // Inicializa parsed com o primeiro token
@@ -121,18 +125,19 @@ char **parser(char *input)
 
     for (;;) // loop infinito de uma maneira chic :)
     {
-        token = strtok(NULL, " "); //Continua criando tokens do ponteiro em estado interno
+        token = strtok_r(NULL, " ", &pos); // .. TODO
         if (token == NULL) //Caso encontrada o fim da string original, feche o loop
             break;
         i++;
         parsed = realloc(parsed, (i + 1) * sizeof(char *)); // Aloca espaço para mais uma palavra
-        parsed[i] = malloc(sizeof(char) * strlen(token));
+        parsed[i] = malloc(strlen(token) + 1);
         strcpy(parsed[i], token);
         //printf("Do Parser: %s\n", parsed[i]); // print de teste
     }
 
     parsedItemsNo = i+1; // Registra quantas palavras foram tokenizadas
     parsed[i+1] = NULL; // Necessário para ser argumento na família exec()
+    printf("input apos tok: %s\n", input);
 
     //for(int i = 0; i<parsedItemsNo; i++)
     //    printf("t: %s\n", parsed[i]);
