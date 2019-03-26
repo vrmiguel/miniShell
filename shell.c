@@ -1,6 +1,6 @@
 ﻿/*
     miniShell (https://github.com/vrmiguel/miniShell)
-    By Vinícius R. Miguel, Lucas Saavedra Vaz and Gustavo Bárbaro de Oliveira
+    By Vinícius R. Miguel and Gustavo Bárbaro de Oliveira
     Prof. Bruno Kimura, Ph.D.
     Federal University of São Paulo, Mar. 2019
 */
