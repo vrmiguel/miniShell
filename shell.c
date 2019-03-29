@@ -27,7 +27,6 @@
                     "ifconfig" --> erro obtendo informações da interface: %s: dispositivo não encontrado
                     "cd Área\ de\ Trabalho/" --> se torna irresponsivo (possível limitação de chdir com utf-8)
                     "who" --> não exibe nada para qualquer caso
-
     comandos implementados (ou quase lá):
         pwd (O.K.)
         nano (O.K.)
@@ -38,10 +37,8 @@
     TO-DO:
         mkdir
         chmod
-
     para liberar:
         parsed, input
-
 */
 
 
@@ -65,6 +62,7 @@ int acceptableCommandsNo = 2; // TODO: deletar
 int parsedItemsNo; // quantidade de palavras tokenizadas na string atual
 char cwd[BUFSIZ]; /* Inicializa string para pasta atual, respeitando o limite máximo de caracteres que o stdin pode transferir */
 char * currentDirName;// Deverá ser inicializada em initialize() e então só modificada em changeDir()
+int pipePositions[2] = {0, 0};
 
 int main(int argv, char **argc)
 {
@@ -76,6 +74,8 @@ int main(int argv, char **argc)
         char *input = getInput(); // Adquira input
         char **parsed = parser(input);
         ret = run(parsed);
+        
+        printf("Retornou?\n");
         
         free(input); //Libera memória alocada para input e parsed
         
@@ -93,17 +93,20 @@ char *getInput()
 {
     /* Lê e retorna caracteres do stdin. Por motivos de economia de memória, o programa salva a
     string do usuário de maneira dinâmicamente crescente. */
-    char *input = (char *) malloc(sizeof(char)); //Aloca espaço para primeira letra
+    char *input = (char *) malloc(BUFSIZ*sizeof(char)); //Aloca espaço para letras (tamanho máximo de buffer de stdin)
     char c = getchar(); // Recebe primeira letra..
     input[0] = c;       //..e inicializa input com ela.
-    int i = 1;
+    int i;
 
     /* Lê caracteres enquanto o usuário não pressiona Enter ou Ctrl-D e enquanto o comando de entrada não passa do tamanho máximo de buffer de stdin. */
-    while (((c = getchar()) != '\n') && (c != EOF) && (i < BUFSIZ - 2))
+    for(i=1; (i < BUFSIZ - 2) && ((c = getchar()) != '\n') && (c != EOF); ++i)
     {
-        //input = realloc(input, (i+1)*sizeof(char)); // Aloca espaço para mais uma letra
         input[i] = c;    //Insere letra no vetor
-        i++;
+        if(c == '|')
+			if(pipePositions[0] == 0)
+				pipePositions[0] = i;
+			else if (pipePositions[0] == 0)
+				pipePositions[1] = i;
     }   
     input = realloc(input, (i+1)*sizeof(char)); // Aloca espaço para terminador de string
     input[i] = '\0';   //Insere terminador de string.
