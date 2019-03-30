@@ -43,15 +43,15 @@
 
 
     //Protótipos - Function signatures
-char *getInput();
+char *getInput(void);
 char **parser(char *input);
-void typePrompt();
+void typePrompt(void);
 int run(char ** parsed);
 int stringCompare(int str1Length, char * str1, char *str2);
 int changeDir(char ** parsed);
-void initialize();
+void initialize(void);
 int simpleCommand(char ** parsed);
-char * getCurrentDirNameOnly();
+char * getCurrentDirNameOnly(void);
 void stringConcatenate (char *dest, char *src);
 
     //Variáveis globais
@@ -74,14 +74,17 @@ int main(int argv, char **argc)
         char *input = getInput(); // Adquira input
         char **parsed = parser(input);
         ret = run(parsed);
-        
+
         printf("Retornou?\n");
-        
+
         free(input); //Libera memória alocada para input e parsed
-        
-        for(int i=0; i<parsedItemsNo; i++)
-            free(parsed[i]);
-        free(parsed);
+
+        for(int i=0; i<parsedItemsNo+(3-2); i++)
+            printf("grr, %s\n", parsed[i]);
+
+        //for(int i=0; i<parsedItemsNo; i++)
+        //    free(parsed[i]);
+        //free(parsed);
         if (ret == -1)
             break;
     }
@@ -103,11 +106,11 @@ char *getInput()
     {
         input[i] = c;    //Insere letra no vetor
         if(c == '|')
-			if(pipePositions[0] == 0)
-				pipePositions[0] = i;
-			else if (pipePositions[0] == 0)
-				pipePositions[1] = i;
-    }   
+            if(pipePositions[0] == 0)
+                pipePositions[0] = i;
+            else if (pipePositions[0] == 0)
+                pipePositions[1] = i;
+    }
     input = realloc(input, (i+1)*sizeof(char)); // Aloca espaço para terminador de string
     input[i] = '\0';   //Insere terminador de string.
     return input;
@@ -119,14 +122,14 @@ char **parser(char *input)
     char **parsed = malloc(sizeof(char *)); //Aloca espaço para primeira palavra
     printf("input antes de tok: %s\n", input);
     char * pos;
-    char *token = strtok_r(input, " ", &pos); // Cria primeiro token (separador " ") e ... TODO 
+    char *token = strtok_r(input, " ", &pos); // Cria primeiro token (separador " ") e ... TODO
     int i = 0;
     parsed[0] = malloc(strlen(token)*sizeof(char));
     strcpy(parsed[0],token); // Inicializa parsed com o primeiro token
 
     // printf("Do Parser: %s\n", parsed[0]); // teste
 
-    for (;;) // loop infinito de uma maneira chic :)
+    for (;;)
     {
         token = strtok_r(NULL, " ", &pos); // .. TODO
         if (token == NULL) //Caso encontrada o fim da string original, feche o loop
