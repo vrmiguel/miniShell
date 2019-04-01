@@ -16,6 +16,7 @@
 #include <sys/stat.h>
 
 #define true 1
+#define false 0
 #define colorRed "\x1b[31m" //Código de escape ANSI para a cor vermelha
 #define colorBlue "\x1b[34m" // Código de escape ANSI para a cor azul
 #define colorReset   "\x1b[0m" // Código de escape ANSI para voltar a exibição para a cor padrão do stdout
@@ -40,7 +41,6 @@
         parsed, input
 */
 
-
     //Protótipos - Function signatures
 char *getInput(void);
 char **parser(char *input);
@@ -61,6 +61,7 @@ int acceptableCommandsNo = 2; // TODO: deletar
 int parsedItemsNo; // quantidade de palavras tokenizadas na string atual
 char cwd[BUFSIZ]; /* Inicializa string para pasta atual, respeitando o limite máximo de caracteres que o stdin pode transferir */
 char * currentDirName;// Deverá ser inicializada em initialize() e então só modificada em changeDir()
+int async = false; // Indica execução assíncrona quando verdadeiro
 int pipePositions[2] = {0, 0};
 
 int main(int argv, char **argc)
@@ -73,14 +74,7 @@ int main(int argv, char **argc)
         char *input = getInput(); // Adquira input
         char ** parsed = parser(input);
         ret = run(parsed);
-
-        printf("Retornou?\n");
-
         free(input); //Libera memória alocada para input e parsed
-
-        for(int i=0; i<parsedItemsNo+(3-2); i++)
-            printf("grr, %s\n", parsed[i]);
-
         for(int i=0; i<parsedItemsNo; i++)
             free(parsed[i]);
         free(parsed);
@@ -142,16 +136,20 @@ char **parser(char *input)
     //parsed = realloc(parsed, (i + 1) * sizeof(char *));
     parsedItemsNo = i+1; // Registra quantas palavras foram tokenizadas
     parsed[i+1] = NULL; // Necessário para ser argumento na família exec()
-    printf("input apos tok: %s\n", input);
 
-    //for(int i = 0; i<parsedItemsNo; i++)
-    //    printf("t: %s\n", parsed[i]);
     return parsed;
 }
 
 int run(char ** parsed) // EM TESTE
 {
     int sizeFirstWord = strlen(parsed[0]);
+
+    if(!strcmp(parsed[parsedItemsNo-(3-2)],"&")) // Verifica se o comando termina em ampersand (&), indicando execução assíncrona
+    {
+        async = true;
+        parsed[parsedItemsNo-(3-2)] = NULL;
+        printf("\n\nasync: %d", async);
+    }
 
     if(stringCompare(sizeFirstWord, parsed[0], "ls"))
         return simpleCommand(parsed);
@@ -261,7 +259,8 @@ int simpleCommand(char ** parsed)
 {
     pid_t testPID; // valor para teste pai/filho
 
-    printf("Entrou aqui? 2  %s \n", parsed[1]);
+    //printf("Entrou aqui? 2  %s \n", parsed[1]);
+    
     testPID = fork();
     int status;
     if ( testPID == 0 )
@@ -272,7 +271,9 @@ int simpleCommand(char ** parsed)
         return -1;
     }
     else
-        waitpid(-1, &status, 0);
+        if (async == false) // Se o comando não tiver que rodar de modo assíncrono
+            waitpid(-1, &status, 0);
+        // Caso contrário, o comando será executado de modo assíncrono (só retornará para o shell quando o comando for terminado)
     return 1; // sucesso
 }
 
