@@ -15,7 +15,6 @@
 #include <sys/wait.h>
 #include <sys/stat.h>
 
-
 #define true 1
 #define colorRed "\x1b[31m" //Código de escape ANSI para a cor vermelha
 #define colorBlue "\x1b[34m" // Código de escape ANSI para a cor azul
@@ -72,7 +71,7 @@ int main(int argv, char **argc)
         typePrompt(); // Exibe prompt padrão de digitação
         int ret; // Variável para teste de retorno de execução | execution r
         char *input = getInput(); // Adquira input
-        char **parsed = parser(input);
+        char ** parsed = parser(input);
         ret = run(parsed);
 
         printf("Retornou?\n");
@@ -82,9 +81,9 @@ int main(int argv, char **argc)
         for(int i=0; i<parsedItemsNo+(3-2); i++)
             printf("grr, %s\n", parsed[i]);
 
-        //for(int i=0; i<parsedItemsNo; i++)
-        //    free(parsed[i]);
-        //free(parsed);
+        for(int i=0; i<parsedItemsNo; i++)
+            free(parsed[i]);
+        free(parsed);
         if (ret == -1)
             break;
     }
@@ -111,7 +110,7 @@ char *getInput()
             else if (pipePositions[0] == 0)
                 pipePositions[1] = i;
     }
-    input = realloc(input, (i+1)*sizeof(char)); // Aloca espaço para terminador de string
+    //input = realloc(input, (i+1)*sizeof(char)); // Aloca espaço para terminador de string
     input[i] = '\0';   //Insere terminador de string.
     return input;
 }
@@ -119,7 +118,7 @@ char *getInput()
 /* Divide a string dada pela variável input  */
 char **parser(char *input)
 {
-    char **parsed = malloc(sizeof(char *)); //Aloca espaço para primeira palavra
+    char **parsed = malloc(20 * sizeof(char *)); //Aloca espaço para vinte palavras
     printf("input antes de tok: %s\n", input);
     char * pos;
     char *token = strtok_r(input, " ", &pos); // Cria primeiro token (separador " ") e ... TODO
@@ -135,12 +134,12 @@ char **parser(char *input)
         if (token == NULL) //Caso encontrada o fim da string original, feche o loop
             break;
         i++;
-        parsed = realloc(parsed, (i + 1) * sizeof(char *)); // Aloca espaço para mais uma palavra
+        //parsed = realloc(parsed, (i + 1) * sizeof(char *)); // Aloca espaço para mais uma palavra
         parsed[i] = malloc(strlen(token) + 1);
         strcpy(parsed[i], token);
         //printf("Do Parser: %s\n", parsed[i]); // print de teste
     }
-
+    //parsed = realloc(parsed, (i + 1) * sizeof(char *));
     parsedItemsNo = i+1; // Registra quantas palavras foram tokenizadas
     parsed[i+1] = NULL; // Necessário para ser argumento na família exec()
     printf("input apos tok: %s\n", input);
@@ -194,7 +193,7 @@ void typePrompt()
 
 int stringCompare(int str1Length, char* str1, char* str2) // não usado, possivelmente será excluído
 {
-    int a = strlen(str1);
+    int a = str1Length;
     if (a != strlen(str2))
         return 0;
     for(int i = 0; i<a; i++)
@@ -264,7 +263,7 @@ int simpleCommand(char ** parsed)
 
     printf("Entrou aqui? 2  %s \n", parsed[1]);
     testPID = fork();
-    int * status;
+    int status;
     if ( testPID == 0 )
         execvp(parsed[0], parsed);
     else if (testPID < 0)
@@ -273,7 +272,7 @@ int simpleCommand(char ** parsed)
         return -1;
     }
     else
-        waitpid(-1, status, 0);
+        waitpid(-1, &status, 0);
     return 1; // sucesso
 }
 
