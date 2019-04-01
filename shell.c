@@ -144,11 +144,10 @@ int run(char ** parsed) // EM TESTE
 {
     int sizeFirstWord = strlen(parsed[0]);
 
-    if(!strcmp(parsed[parsedItemsNo-(3-2)],"&")) // Verifica se o comando termina em ampersand (&), indicando execução assíncrona
+    if(!strcmp(parsed[parsedItemsNo-1],"&")) // Verifica se o comando termina em ampersand (&), indicando execução assíncrona
     {
         async = true;
-        parsed[parsedItemsNo-(3-2)] = NULL;
-        printf("\n\nasync: %d", async);
+        parsed[parsedItemsNo-1] = NULL;
     }
 
     if(stringCompare(sizeFirstWord, parsed[0], "ls"))
@@ -273,7 +272,13 @@ int simpleCommand(char ** parsed)
     else
         if (async == false) // Se o comando não tiver que rodar de modo assíncrono
             waitpid(-1, &status, 0);
-        // Caso contrário, o comando será executado de modo assíncrono (só retornará para o shell quando o comando for terminado)
+        
+        else
+        {
+            // Caso contrário, o comando será executado de modo assíncrono (só retornará para o shell quando o comando for terminado)
+            // async voltará a ser false para que não interfira com comandos futuros
+            async = false;
+        }
     return 1; // sucesso
 }
 
