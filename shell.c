@@ -20,6 +20,8 @@
 #define colorRed "\x1b[31m" //Código de escape ANSI para a cor vermelha
 #define colorBlue "\x1b[34m" // Código de escape ANSI para a cor azul
 #define colorReset   "\x1b[0m" // Código de escape ANSI para voltar a exibição para a cor padrão do stdout
+#define WRITE_END 1
+#define READ_END 0
 
 /*
     casos com erro: "ls" --> não é possível acessar ''$'\350''+'$'\307'')'$'\201\177': Arquivo ou diretório não encontrado
@@ -41,7 +43,7 @@
         parsed, input
 */
 
-    //Protótipos - Function signatures
+        //Protótipos
 char *getInput(void);
 char **parser(char *input);
 void typePrompt(void);
@@ -50,21 +52,22 @@ int stringCompare(int str1Length, char * str1, char *str2);
 int changeDir(char ** parsed);
 void initialize(void);
 int simpleCommand(char ** parsed);
+int pipedCommand(char ** parsed);
 char * getCurrentDirNameOnly(void);
-void stringConcatenate (char *dest, char *src);
+int  findPipe(char ** parsed);
+void copyParts(char ** parsed, char ** aux, int position, int length);
+int  findRedirectToFile(char ** parsed);
 
     //Variáveis globais
-char* acceptableCommands[] = {"ls", "quit", "tryhard"}; // TODO: deletar
 char username[32]; // guardará o nome do usuário, com no máximo 32 caracteres, como estipulado pela biblioteca GNU C (glibc).
 char hostname[64]; // guardará o nome do host, com no máximo 64 caracteres, como estipulado pela biblioteca GNU C (getconf HOST_NAME_MAX)
-int acceptableCommandsNo = 2; // TODO: deletar
 int parsedItemsNo; // quantidade de palavras tokenizadas na string atual
 char cwd[BUFSIZ]; /* Inicializa string para pasta atual, respeitando o limite máximo de caracteres que o stdin pode transferir */
 char * currentDirName;// Deverá ser inicializada em initialize() e então só modificada em changeDir()
-int async = false; // Indica execução assíncrona quando verdadeiro
 int pipePositions[2] = {0, 0};
+int writeToPosition  = 0;
 
-int main(int argv, char **argc)
+int main(int argv, char ** argc)
 {
     initialize();
     for (;;)
@@ -74,14 +77,16 @@ int main(int argv, char **argc)
         char *input = getInput(); // Adquira input
         char ** parsed = parser(input);
         ret = run(parsed);
+
         free(input); //Libera memória alocada para input e parsed
+
         for(int i=0; i<parsedItemsNo; i++)
             free(parsed[i]);
         free(parsed);
         if (ret == -1)
             break;
     }
-    printf("Finalizando miniShell\n");
+    printf("Closing miniShell\n");
     return 0;
 }
 
@@ -96,14 +101,8 @@ char *getInput()
 
     /* Lê caracteres enquanto o usuário não pressiona Enter ou Ctrl-D e enquanto o comando de entrada não passa do tamanho máximo de buffer de stdin. */
     for(i=1; (i < BUFSIZ - 2) && ((c = getchar()) != '\n') && (c != EOF); ++i)
-    {
         input[i] = c;    //Insere letra no vetor
-        if(c == '|')
-            if(pipePositions[0] == 0)
-                pipePositions[0] = i;
-            else if (pipePositions[0] == 0)
-                pipePositions[1] = i;
-    }
+
     //input = realloc(input, (i+1)*sizeof(char)); // Aloca espaço para terminador de string
     input[i] = '\0';   //Insere terminador de string.
     return input;
@@ -113,7 +112,6 @@ char *getInput()
 char **parser(char *input)
 {
     char **parsed = malloc(20 * sizeof(char *)); //Aloca espaço para vinte palavras
-    printf("input antes de tok: %s\n", input);
     char * pos;
     char *token = strtok_r(input, " ", &pos); // Cria primeiro token (separador " ") e ... TODO
     int i = 0;
@@ -137,66 +135,185 @@ char **parser(char *input)
     parsedItemsNo = i+1; // Registra quantas palavras foram tokenizadas
     parsed[i+1] = NULL; // Necessário para ser argumento na família exec()
 
+    //for(int i = 0; i<parsedItemsNo; i++)
+    //    printf("t: %s\n", parsed[i]);
     return parsed;
+}
+
+int findRedirectToFile(char ** parsed)
+{
+  return 1;
 }
 
 int run(char ** parsed) // EM TESTE
 {
-    int sizeFirstWord = strlen(parsed[0]);
 
-    if(!strcmp(parsed[parsedItemsNo-1],"&")) // Verifica se o comando termina em ampersand (&), indicando execução assíncrona
+    if (findPipe(parsed))
     {
-        async = true;
-        parsed[parsedItemsNo-1] = NULL;
+      printf("Entrando em pipedCommand()...\n");
+      return pipedCommand (parsed);
     }
-
-    if(stringCompare(sizeFirstWord, parsed[0], "ls"))
-        return simpleCommand(parsed);
-    else if(stringCompare(sizeFirstWord, parsed[0], "ifconfig"))
-        return simpleCommand(parsed);
-    else if(stringCompare(sizeFirstWord, parsed[0], "cd"))
-        return changeDir(parsed);
-    else if(stringCompare(sizeFirstWord, parsed[0], "quit"))
-        return -1;
-    else if(stringCompare(sizeFirstWord, parsed[0], "pwd"))
-    {
-        printf("%s\n", cwd);
-        return 1;
+    else if (findRedirectToFile(parsed))
+    {  // Caso não  haja nenhum pipe
+        if(!strcmp(parsed[0] , "cd"))
+            return changeDir(parsed);
+        else if(!strcmp(parsed[0], "quit") || !strcmp(parsed[0],  "exit"))
+            return  -1;
+        else if(!strcmp(parsed[0], "clear"))
+        {
+            /* O printf abaixo executa um código de escape ANSI para limpar a tela e cursor*/
+            printf("\e[2J\e[H");
+            return 1;
+        }
+        else if(!strcmp(parsed[0], "pwd"))
+        {
+            printf("%s\n", cwd);
+            return 1;
+        }
+        else
+            return simpleCommand(parsed);
     }
-    else if(stringCompare(sizeFirstWord, parsed[0], "clear"))
-    {
-        /* O printf abaixo executa um código de escape ANSI para limpar a tela e cursor*/
-        printf("\e[2J\e[H");
-        return 1;
-    }
-    else if(stringCompare(sizeFirstWord, parsed[0], "ping") || stringCompare(sizeFirstWord, parsed[0], "nano") || stringCompare(sizeFirstWord, parsed[0], "echo") || stringCompare(sizeFirstWord, parsed[0], "python3"))
-        return simpleCommand(parsed);
-
-    //else if(strcmp(parsed[0], ""))
-    //else if(strcmp(parsed[0], ""))
-
-    printf("%s: comando não encontrado\n", parsed[0]);
-    return 2;
-
-    //execvp(parsed[0], parsed);
-    //printf("%s", acceptableCommands[2]);
 }
 
-    /* */
+int simpleCommand(char ** parsed)
+{
+    pid_t testPID; // valor para teste pai/filho
+
+    //printf("Entrou aqui?  %s \n", parsed[1]);
+    testPID = fork();
+    int status;
+    if ( testPID == 0 )
+    {
+        execvp(parsed[0], parsed);
+        printf("%s: comando não encontrado\n", parsed[0]);
+    }
+    else if (testPID < 0)
+    {
+        printf("Erro ao produzir fork.");
+        return -1;
+    }
+    else
+    {
+        waitpid(-1, &status, WUNTRACED);
+    }
+
+    return 1; // sucesso
+}
+
+int pipedCommand(char ** parsed)
+{
+    pid_t pid;
+    int fileDescriptor[2];
+    if (pipe(fileDescriptor) == -1){
+        fprintf(stderr, "Falha em criação de pipe.\n");
+        return 0;
+    }
+
+    pid = fork();
+    printf("Entrou em pipedCommand()...\n");
+
+    if(pid == 0)
+    {
+        close(STDOUT_FILENO);
+        dup(fileDescriptor[WRITE_END]);
+        close(fileDescriptor[READ_END]);
+        close(fileDescriptor[WRITE_END]);
+        char ** aux  = malloc(parsedItemsNo*sizeof (char *));
+        int  c;
+
+        for(c = 0; c < pipePositions[0]; c++) // Copia parsed até chegar no primeiro "|"
+        {
+            //aux[c] = malloc((strlen(parsed[c]) + 1) * sizeof(char));
+            aux[c] = parsed[c];
+            strcpy(aux[c], parsed[c]);
+            //fprintf(stderr, "aux[%d]: %s\n", c, aux[c]);
+           //printf("aux[%d]: %s\n", c, aux[c]);
+        }
+        aux[c+1] = NULL;
+
+        execvp(aux[0], aux);
+        fprintf(stderr, "%s: Comando não encontrado.", aux[0]);
+        /*
+         *  Não há necessidade de liberar memória (como aux) neste caso em específico, visto que toda a memória é liberada
+         *  quando execvp() for executado. Fonte: man7.org/linux/man-pages/man2/execve.2.html
+        */
+    }
+    else{
+        pid = fork();
+        if(pid == 0)
+        {
+            close(STDIN_FILENO);
+            dup(fileDescriptor[READ_END]);
+            close(fileDescriptor[WRITE_END]);
+            close(fileDescriptor[READ_END]);
+
+            int i, c=0;
+            char ** aux  = malloc(parsedItemsNo*sizeof (char *));
+            for(i=pipePositions[0]+1;  i<parsedItemsNo;  i++)
+            {
+                  //aux[c] = malloc( (strlen(parsed[i]) + 1)*sizeof(char));
+                  //strcpy(aux[c], parsed[i]);
+                  //fprintf(stderr, "aux[%d]: %s\n", c, aux[c]);
+                  aux[c] = parsed[i];
+                  //printf("aux[%d]: %s\n", c, aux[c]);
+                  c++;
+            }
+            //fprintf(stderr, "c: %s\n", aux[0]);
+            //printf("?????");
+            //printf("c: %s\n", aux[0]);
+            //printf("c: %s\n", aux[1]);
+            // PROBLEMA ATUAL:
+            // POR ALGUM MOTIVO NADA ABAIXO DAQUI É IMPRESSO. NÃO FAZ O MENOR SENTIDO
+            aux[c] = NULL;
+
+
+            //const char* aux[] = {"grep", "a.out", 0};
+            execvp(aux[0], aux);
+            fprintf(stderr, "%s: Comando não encontrado.", aux[0]);
+        }
+        else
+        {
+            int status;
+            close(fileDescriptor[READ_END]);
+            close(fileDescriptor[WRITE_END]);
+            //waitpid(pid, &status, 0);
+            wait(0);
+            wait(0);
+        }
+    }
+    pipePositions[0] = 0;
+    pipePositions[1] = 0;
+    return 2;
+}
+
+void copyParts(char ** parsed, char ** aux, int position, int length)
+{
+    int c = 0;
+    while (c < parsedItemsNo)
+    {
+        aux[c] = malloc((strlen(parsed[c]) + 1) * sizeof(char));
+        strcpy(aux[c], parsed[position+length]);
+        c++;
+    }
+}
+
+
+int findPipe(char ** parsed) // TODO: encontrar mais de 2 forks
+{
+    int i;
+    for(i=0; i<parsedItemsNo; i++) // Varre os comandos lidos procurando por um caracter "|"
+        if(!strcmp(parsed[i], "|"))
+            if (pipePositions[0] == 0)
+                pipePositions[0] = i;
+            else
+                if (pipePositions[1] == 0)
+                    pipePositions[1] = i;
+    return pipePositions[0] != 0; // Retorna verdadeiro se algum "|" foi econtrado, falso caso contrário.
+}
+
 void typePrompt()
 {
     printf(colorBlue "%s@%s:~/" colorRed "%s" colorBlue "$ " colorReset, username, hostname, currentDirName);
-}
-
-int stringCompare(int str1Length, char* str1, char* str2) // não usado, possivelmente será excluído
-{
-    int a = str1Length;
-    if (a != strlen(str2))
-        return 0;
-    for(int i = 0; i<a; i++)
-        if(str1[i] != str2[i])
-            return 0;
-    return 1;
 }
 
     /* muda o diretório do processo pai */
@@ -241,7 +358,7 @@ int changeDir(char ** parsed) // currentDirName deve ser modificado
 
 void initialize()
 {
-    printf("\n   -------- miniShell --------\n\nVinícius R. Miguel, Lucas S. Vaz & Gustavo B. de Oliveira\ngithub.com/vrmiguel/miniShell -- Unifesp -- Março de 2019\n\n");
+    printf("\n   -------- miniShell --------\n\nVinícius R. Miguel & Gustavo B. de Oliveira\ngithub.com/vrmiguel/miniShell -- Unifesp -- Março de 2019\n\n");
     getcwd(cwd, BUFSIZ); //Grava o nome da pasta atual
     //printf("CWD: %s\n", cwd);
     currentDirName = getCurrentDirNameOnly(); // Formata a string da pasta atual para exibição em typePrompt()
@@ -252,34 +369,6 @@ void initialize()
     gethostname(hostname, 64);
     //printf("\n\n\n%s\n\n\n", pw->pw_name);
     //username = pw->pw_name;
-}
-
-int simpleCommand(char ** parsed)
-{
-    pid_t testPID; // valor para teste pai/filho
-
-    //printf("Entrou aqui? 2  %s \n", parsed[1]);
-    
-    testPID = fork();
-    int status;
-    if ( testPID == 0 )
-        execvp(parsed[0], parsed);
-    else if (testPID < 0)
-    {
-        printf("Erro ao produzir fork.");
-        return -1;
-    }
-    else
-        if (async == false) // Se o comando não tiver que rodar de modo assíncrono
-            waitpid(-1, &status, 0);
-        
-        else
-        {
-            // Caso contrário, o comando será executado de modo assíncrono (só retornará para o shell quando o comando for terminado)
-            // async voltará a ser false para que não interfira com comandos futuros
-            async = false;
-        }
-    return 1; // sucesso
 }
 
     /* Processa a variável cwd para posterior exibição correta em typePrompt()
@@ -298,9 +387,4 @@ char * getCurrentDirNameOnly ()
         aux = token;
     }
     return aux;
-}
-
-void stringConcatenate (char *dest, char *src)
-{
-  strcpy (dest + strlen (dest), src);
 }
