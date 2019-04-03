@@ -30,15 +30,13 @@
                     "cd Área\ de\ Trabalho/" --> se torna irresponsivo (possível limitação de chdir com utf-8)
                     "who" --> não exibe nada para qualquer caso
     comandos implementados (ou quase lá):
-        pwd (O.K.)
-        nano (O.K.)
-        quit (O.K.)
-        cd (problema com nomes utf-8 + problema com espaços)
-        ls (problema quando chamado sem argumento)
-        ping (precisa de Ctrl+C para terminar sua execução, o que também termina o miniShell)
+
     TO-DO:
         mkdir
         chmod
+        checar por built-ins em pipes
+        implementar vetor 'commands', feito a partir de parsed, contendo
+        a cadeia de comandos a ser executada.
     para liberar:
         parsed, input
 */
@@ -149,10 +147,8 @@ int run(char ** parsed) // EM TESTE
 {
 
     if (findPipe(parsed))
-    {
-      printf("Entrando em pipedCommand()...\n");
       return pipedCommand (parsed);
-    }
+
     else if (findRedirectToFile(parsed))
     {  // Caso não  haja nenhum pipe
         if(!strcmp(parsed[0] , "cd"))
@@ -205,13 +201,11 @@ int pipedCommand(char ** parsed)
     pid_t pid;
     int fileDescriptor[2];
     if (pipe(fileDescriptor) == -1){
-        fprintf(stderr, "Falha em criação de pipe.\n");
+        fprintf(stderr, "Falha na criação de pipe.\n");
         return 0;
     }
 
     pid = fork();
-    printf("Entrou em pipedCommand()...\n");
-
     if(pid == 0)
     {
         close(STDOUT_FILENO);
@@ -223,7 +217,6 @@ int pipedCommand(char ** parsed)
 
         for(c = 0; c < pipePositions[0]; c++) // Copia parsed até chegar no primeiro "|"
         {
-            //aux[c] = malloc((strlen(parsed[c]) + 1) * sizeof(char));
             aux[c] = parsed[c];
             strcpy(aux[c], parsed[c]);
             //fprintf(stderr, "aux[%d]: %s\n", c, aux[c]);
@@ -232,11 +225,9 @@ int pipedCommand(char ** parsed)
         aux[c+1] = NULL;
 
         execvp(aux[0], aux);
-        fprintf(stderr, "%s: Comando não encontrado.", aux[0]);
-        /*
-         *  Não há necessidade de liberar memória (como aux) neste caso em específico, visto que toda a memória é liberada
-         *  quando execvp() for executado. Fonte: man7.org/linux/man-pages/man2/execve.2.html
-        */
+        fprintf(stderr, "%s:Comando não encontrado.", aux[0]);
+        free(aux);
+        return 0;
     }
     else{
         pid = fork();
@@ -258,25 +249,18 @@ int pipedCommand(char ** parsed)
                   //printf("aux[%d]: %s\n", c, aux[c]);
                   c++;
             }
-            //fprintf(stderr, "c: %s\n", aux[0]);
-            //printf("?????");
-            //printf("c: %s\n", aux[0]);
-            //printf("c: %s\n", aux[1]);
-            // PROBLEMA ATUAL:
-            // POR ALGUM MOTIVO NADA ABAIXO DAQUI É IMPRESSO. NÃO FAZ O MENOR SENTIDO
             aux[c] = NULL;
-
-
             //const char* aux[] = {"grep", "a.out", 0};
             execvp(aux[0], aux);
             fprintf(stderr, "%s: Comando não encontrado.", aux[0]);
+            free(aux);
+            return 0;
         }
         else
         {
             int status;
             close(fileDescriptor[READ_END]);
             close(fileDescriptor[WRITE_END]);
-            //waitpid(pid, &status, 0);
             wait(0);
             wait(0);
         }
