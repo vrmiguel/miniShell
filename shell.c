@@ -53,7 +53,6 @@ int simpleCommand(char ** parsed);
 int pipedCommand(char ** parsed);
 char * getCurrentDirNameOnly(void);
 int  findPipe(char ** parsed);
-void copyParts(char ** parsed, char ** aux, int position, int length);
 int  findRedirectToFile(char ** parsed);
 
     //Variáveis globais
@@ -62,7 +61,8 @@ char hostname[64]; // guardará o nome do host, com no máximo 64 caracteres, co
 int parsedItemsNo; // quantidade de palavras tokenizadas na string atual
 char cwd[BUFSIZ]; /* Inicializa string para pasta atual, respeitando o limite máximo de caracteres que o stdin pode transferir */
 char * currentDirName;// Deverá ser inicializada em initialize() e então só modificada em changeDir()
-int pipePositions[2] = {0, 0};
+int pipePositions[10] = {0};
+int pipeQuant = 0;
 int writeToPosition  = 0;
 
 int main(int argv, char ** argc)
@@ -106,7 +106,7 @@ char *getInput()
     return input;
 }
 
-/* Divide a string dada pela variável input  */
+    /* Divide a string dada pela variável input  */
 char **parser(char *input)
 {
     char **parsed = malloc(20 * sizeof(char *)); //Aloca espaço para vinte palavras
@@ -115,8 +115,6 @@ char **parser(char *input)
     int i = 0;
     parsed[0] = malloc(strlen(token)*sizeof(char));
     strcpy(parsed[0],token); // Inicializa parsed com o primeiro token
-
-    // printf("Do Parser: %s\n", parsed[0]); // teste
 
     for (;;)
     {
@@ -133,8 +131,6 @@ char **parser(char *input)
     parsedItemsNo = i+1; // Registra quantas palavras foram tokenizadas
     parsed[i+1] = NULL; // Necessário para ser argumento na família exec()
 
-    //for(int i = 0; i<parsedItemsNo; i++)
-    //    printf("t: %s\n", parsed[i]);
     return parsed;
 }
 
@@ -196,25 +192,12 @@ int simpleCommand(char ** parsed)
     return 1; // sucesso
 }
 
-int pipedCommand(char ** parsed)
+    // Obtem comandos auxiliares para execução em pipedCommand()
+void getAuxCommand(char ** parsed, char ** aux, int loop)
 {
-    pid_t pid;
-    int fileDescriptor[2];
-    if (pipe(fileDescriptor) == -1){
-        fprintf(stderr, "Falha na criação de pipe.\n");
-        return 0;
-    }
-
-    pid = fork();
-    if(pid == 0)
+    int i, c;
+    if (loop == 0)
     {
-        //close(STDOUT_FILENO);
-        dup2(fileDescriptor[WRITE_END], WRITE_END);
-        close(fileDescriptor[READ_END]);
-        close(fileDescriptor[WRITE_END]);
-        char ** aux  = malloc(parsedItemsNo*sizeof (char *));
-        int  c;
-
         for(c = 0; c < pipePositions[0]; c++) // Copia parsed até chegar no primeiro "|"
         {
             aux[c] = parsed[c];
@@ -223,6 +206,41 @@ int pipedCommand(char ** parsed)
            //printf("aux[%d]: %s\n", c, aux[c]);
         }
         aux[c+1] = NULL;
+        return;
+    }
+    else
+    {
+        c = 0;
+        for(i=pipePositions[loop-1]+1;  i<pipePositions[loop];  i++)
+            {
+                  //aux[c] = malloc( (strlen(parsed[i]) + 1)*sizeof(char));
+                  aux[c] = parsed[i];
+                  printf("aux[%d]: %s\n", c, aux[c]);
+                  c++;
+            }
+        aux[c+1] = NULL;
+    }
+}
+
+    //Executa comandos com pipeline.
+int pipedCommand(char ** parsed)
+{
+    pid_t pid;
+    int fileDescriptor[2];
+    if (pipe(fileDescriptor) == -1){
+        fprintf(stderr, "Falha na criação de pipe.\n");
+        return 0;
+    }
+    pid = fork();
+    if(pid == 0)
+    {
+        //close(STDOUT_FILENO);
+        dup2(fileDescriptor[WRITE_END], WRITE_END);
+        close(fileDescriptor[READ_END]);
+        close(fileDescriptor[WRITE_END]);
+        char ** aux  = malloc(parsedItemsNo*sizeof (char *));
+
+        getAuxCommand(parsed, aux, 0);
 
         execvp(aux[0], aux);
         fprintf(stderr, "%s:Comando não encontrado.", aux[0]);
@@ -233,23 +251,15 @@ int pipedCommand(char ** parsed)
         pid = fork();
         if(pid == 0)
         {
-            //close(STDIN_FILENO);
             dup2(fileDescriptor[READ_END], READ_END);
             close(fileDescriptor[WRITE_END]);
             close(fileDescriptor[READ_END]);
 
             int i, c=0;
             char ** aux  = malloc(parsedItemsNo*sizeof (char *));
-            for(i=pipePositions[0]+1;  i<parsedItemsNo;  i++)
-            {
-                  //aux[c] = malloc( (strlen(parsed[i]) + 1)*sizeof(char));
-                  //strcpy(aux[c], parsed[i]);
-                  //fprintf(stderr, "aux[%d]: %s\n", c, aux[c]);
-                  aux[c] = parsed[i];
-                  //printf("aux[%d]: %s\n", c, aux[c]);
-                  c++;
-            }
-            aux[c] = NULL;
+
+            getAuxCommand(parsed, aux, 1);
+
             //const char* aux[] = {"grep", "a.out", 0};
             execvp(aux[0], aux);
             fprintf(stderr, "%s: Comando não encontrado.", aux[0]);
@@ -270,28 +280,23 @@ int pipedCommand(char ** parsed)
     return 2;
 }
 
-void copyParts(char ** parsed, char ** aux, int position, int length)
-{
-    int c = 0;
-    while (c < parsedItemsNo)
-    {
-        aux[c] = malloc((strlen(parsed[c]) + 1) * sizeof(char));
-        strcpy(aux[c], parsed[position+length]);
-        c++;
-    }
-}
-
-
+    /* Encontra pipes no comando lido, salvando suas posições em pipePositions */
 int findPipe(char ** parsed) // TODO: encontrar mais de 2 forks
 {
-    int i;
+    int i, j, c=0;
     for(i=0; i<parsedItemsNo; i++) // Varre os comandos lidos procurando por um caracter "|"
         if(!strcmp(parsed[i], "|"))
-            if (pipePositions[0] == 0)
-                pipePositions[0] = i;
-            else
-                if (pipePositions[1] == 0)
-                    pipePositions[1] = i;
+            for(j=0; j<11; j++)
+                if (pipePositions[c] == 0)
+                {
+                    pipePositions[c] = i;
+                    c++;
+                    break;
+                }
+    pipePositions[c] = parsedItemsNo;
+
+    for(i=0; i<=c; i++)
+        printf("a %d\n", pipePositions[i]);
     return pipePositions[0] != 0; // Retorna verdadeiro se algum "|" foi econtrado, falso caso contrário.
 }
 
@@ -372,3 +377,4 @@ char * getCurrentDirNameOnly ()
     }
     return aux;
 }
+
