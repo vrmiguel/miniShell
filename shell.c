@@ -208,8 +208,8 @@ int pipedCommand(char ** parsed)
     pid = fork();
     if(pid == 0)
     {
-        close(STDOUT_FILENO);
-        dup(fileDescriptor[WRITE_END]);
+        //close(STDOUT_FILENO);
+        dup2(fileDescriptor[WRITE_END], WRITE_END);
         close(fileDescriptor[READ_END]);
         close(fileDescriptor[WRITE_END]);
         char ** aux  = malloc(parsedItemsNo*sizeof (char *));
@@ -233,8 +233,8 @@ int pipedCommand(char ** parsed)
         pid = fork();
         if(pid == 0)
         {
-            close(STDIN_FILENO);
-            dup(fileDescriptor[READ_END]);
+            //close(STDIN_FILENO);
+            dup2(fileDescriptor[READ_END], READ_END);
             close(fileDescriptor[WRITE_END]);
             close(fileDescriptor[READ_END]);
 
