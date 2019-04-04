@@ -7,6 +7,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <fcntl.h>
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
@@ -30,7 +31,6 @@
                     "cd Área\ de\ Trabalho/" --> se torna irresponsivo (possível limitação de chdir com utf-8)
                     "who" --> não exibe nada para qualquer caso
     comandos implementados (ou quase lá):
-
     TO-DO:
         mkdir
         chmod
@@ -64,6 +64,7 @@ char * currentDirName;// Deverá ser inicializada em initialize() e então só m
 int pipePositions[10] = {0};
 int nPipes = 0;
 int loop = 0;
+int writeToPosition = 0;
 
 int main(int argv, char ** argc)
 {
@@ -88,6 +89,34 @@ int main(int argv, char ** argc)
     printf("Closing miniShell\n");
     return 0;
 }
+
+int saveToFile(char ** parsed)
+{
+    printf("Entrou em saveToFile\n");
+    int out = open(parsed[writeToPosition+1], O_RDWR|O_CREAT|O_APPEND, 0600);
+    if (-1 == out) { perror("opening cout.log"); return 255; }
+
+    int save_out = dup(fileno(stdout));
+
+    if (-1 == dup2(out, fileno(stdout))) { perror("cannot redirect stdout"); return 255; }
+
+    int i;
+    char ** aux = malloc(parsedItemsNo * sizeof(char *));
+    for(i=0; i<writeToPosition; i++)
+        aux[i] = parsed[i];
+    if (fork() == 0)
+        execvp(aux[0], aux);
+        fprintf(stderr, "%s: Comando ")
+
+    else
+        wait(0);
+
+    fflush(stdout); close(out);
+    dup2(save_out, fileno(stdout));
+    close(save_out);
+    return 0;
+}
+
 
 char *getInput()
 {
@@ -137,16 +166,27 @@ char **parser(char *input)
 
 int findRedirectToFile(char ** parsed)
 {
-  return 1;
+    int i;
+    for (i=0;i<parsedItemsNo;i++)
+        if(strcmp(parsed[i], ">") == 0)
+        {
+            writeToPosition = i;
+            return 1;
+        }
+    return 0;
 }
 
 int run(char ** parsed) // EM TESTE
 {
-
     if (findPipe(parsed))
       return pipedCommand (parsed);
 
-      else
+    else if(findRedirectToFile(parsed))
+    {
+        return saveToFile(parsed);
+    }
+
+    else
     {  // Caso não  haja nenhum pipe
         printf("Entrando em simpleCommand\n");
         if(!strcmp(parsed[0] , "cd"))
@@ -246,7 +286,7 @@ int pipedCommand(char ** parsed)
         printf("Depois do pipe, primeiro: %s", aux[0]);
         printf("Depois do pipe, segundo: %s", aux[3-2]);
         execvp(aux[0], aux);
-        fprintf(stderr, "%s:Comando não encontrado.", aux[0]);
+        fprintf(stderr, "%s:Comando não encontrado.\n", aux[0]);
         free(aux);
         return 0;
     }
@@ -263,7 +303,7 @@ int pipedCommand(char ** parsed)
             printf("Depois do pipe, primeiro: %s", aux[0]);
             printf("Depois do pipe, segundo: %s", aux[3-2]);
             execvp(aux[0], aux);
-            fprintf(stderr, "%s: Comando não encontrado.", aux[0]);
+            fprintf(stderr, "%s: comando não encontrado.\n", aux[0]);
             free(aux);
             return 0;
         }
@@ -396,6 +436,5 @@ char * getCurrentDirNameOnly ()
 /*
 int strcmpv(char ** f, char ** s)
 {
-
 }
 */
