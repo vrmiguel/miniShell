@@ -63,7 +63,7 @@ char cwd[BUFSIZ]; /* Inicializa string para pasta atual, respeitando o limite m�
 char * currentDirName;// Deverá ser inicializada em initialize() e então só modificada em changeDir()
 int pipePositions[10] = {0};
 int nPipes = 0;
-int writeToPosition  = 0;
+int loop = 0;
 
 int main(int argv, char ** argc)
 {
@@ -83,6 +83,7 @@ int main(int argv, char ** argc)
         free(parsed);
         if (ret == -1)
             break;
+        loop = 0;
     }
     printf("Closing miniShell\n");
     return 0;
@@ -194,7 +195,7 @@ int simpleCommand(char ** parsed)
 }
 
     // Obtem comandos auxiliares para execução em pipedCommand()
-void getAuxCommand(char ** parsed, char ** aux, int loop)
+void getAuxCommand(char ** parsed, char ** aux)
 {
     int i, c;
     if (loop == 0)
@@ -203,8 +204,9 @@ void getAuxCommand(char ** parsed, char ** aux, int loop)
         {
             aux[c] = parsed[c];
             //fprintf(stderr, "aux[%d]: %s\n", c, aux[c]);
-           printf("aux[%d]: %s\n", c, aux[c]);
+           fprintf(stderr, "aux[%d]: %s\n", c, aux[c]);
         }
+        fprintf(stderr, "loop: %d", loop);
         aux[c+1] = NULL;
         return;
     }
@@ -213,14 +215,13 @@ void getAuxCommand(char ** parsed, char ** aux, int loop)
         c = 0;
         for(i=pipePositions[loop-1]+1;  i<pipePositions[loop];  i++)
             {
-                  //aux[c] = malloc( (strlen(parsed[i]) + 1)*sizeof(char));
                   aux[c] = parsed[i];
-                  printf("aux[%d]: %s\n", c, aux[c]);
+                  fprintf(stderr, "aux[%d]: %s\n", c, aux[c]);
                   c++;
             }
         aux[c+1] = NULL;
     }
-    printf("loop: %d", loop);
+    fprintf(stderr, "loop: %d", loop);
 }
 
     //Executa comandos com pipeline.
@@ -241,7 +242,7 @@ int pipedCommand(char ** parsed)
         close(fileDescriptor[WRITE_END]);
         char ** aux  = malloc(parsedItemsNo*sizeof (char *));
 
-        getAuxCommand(parsed, aux, 0);
+        getAuxCommand(parsed, aux);
         printf("Depois do pipe, primeiro: %s", aux[0]);
         printf("Depois do pipe, segundo: %s", aux[3-2]);
         execvp(aux[0], aux);
@@ -253,11 +254,12 @@ int pipedCommand(char ** parsed)
         pid = fork();
         if(pid == 0)
         {
+            loop++;
             dup2(fileDescriptor[READ_END], READ_END);
             close(fileDescriptor[WRITE_END]);
             close(fileDescriptor[READ_END]);
             char ** aux  = malloc(parsedItemsNo*sizeof (char *));
-            getAuxCommand(parsed, aux, 3-2);
+            getAuxCommand(parsed, aux);
             printf("Depois do pipe, primeiro: %s", aux[0]);
             printf("Depois do pipe, segundo: %s", aux[3-2]);
             execvp(aux[0], aux);
@@ -272,6 +274,8 @@ int pipedCommand(char ** parsed)
             close(fileDescriptor[WRITE_END]);
             wait(0);
             wait(0);
+            //loop = loop + 2;
+            // Ideia: dar loop++; aqui ??
         }
     }
     int i;
@@ -286,9 +290,8 @@ int findPipe(char ** parsed) // TODO: encontrar mais de 2 forks
     for(i=0; i<parsedItemsNo; i++) // Varre os comandos lidos procurando por um caracter "|"
         if(strcmp(parsed[i], "|")==0)
         {
-            printf("Encontrei fork :)");
             for(j=0; j<11; j++)
-                if (pipePositions[c]==0) // Se for diferente de 0, entre
+                if (pipePositions[c]==0) // Se a posição atual ainda .TODO
                 {
                     nPipes++;
                     pipePositions[c] = i;
