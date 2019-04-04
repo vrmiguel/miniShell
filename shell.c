@@ -92,31 +92,41 @@ int main(int argv, char ** argc)
 
 int saveToFile(char ** parsed)
 {
-    printf("Entrou em saveToFile\n");
+
     int out = open(parsed[writeToPosition+1], O_RDWR|O_CREAT|O_APPEND, 0600);
-    if (-1 == out) { perror("opening cout.log"); return 255; }
+    if (out == - 1)
+    {
+        fprintf(stderr, "Erro em criação de arquivo \"%s\"", parsed[writeToPosition+1] );
+        return 0;
+    }
 
-    int save_out = dup(fileno(stdout));
+    int output = dup(fileno(stdout));
 
-    if (-1 == dup2(out, fileno(stdout))) { perror("cannot redirect stdout"); return 255; }
+    if (dup2(out, fileno(stdout)) == -1)
+    {
+        fprintf(stderr, "Problema em redirecionamento de stdout.\n");
+        return 0;
+    }
 
     int i;
     char ** aux = malloc(parsedItemsNo * sizeof(char *));
     for(i=0; i<writeToPosition; i++)
         aux[i] = parsed[i];
     if (fork() == 0)
+    {
         execvp(aux[0], aux);
-        fprintf(stderr, "%s: Comando ")
-
+        fprintf(stderr, "%s: Comando não encontrado.\n", aux[0]);
+        free(aux);
+    }
     else
         wait(0);
 
-    fflush(stdout); close(out);
-    dup2(save_out, fileno(stdout));
-    close(save_out);
-    return 0;
+    fflush(stdout);
+    close(out);
+    dup2(output, fileno(stdout));
+    close(output);
+    return 1;
 }
-
 
 char *getInput()
 {
@@ -432,9 +442,3 @@ char * getCurrentDirNameOnly ()
     }
     return aux;
 }
-
-/*
-int strcmpv(char ** f, char ** s)
-{
-}
-*/
