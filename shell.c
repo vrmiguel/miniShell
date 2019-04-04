@@ -65,6 +65,7 @@ int pipePositions[10] = {0};
 int nPipes = 0;
 int loop = 0;
 int writeToPosition = 0;
+int readFromPosition = 0;
 
 int main(int argv, char ** argc)
 {
@@ -186,6 +187,42 @@ int findRedirectToFile(char ** parsed)
     return 0;
 }
 
+
+int findRedirectFromFile(char ** parsed)
+{
+    int i;
+    for (i=0;i<parsedItemsNo;i++)
+        if(strcmp(parsed[i], "<") == 0)
+        {
+            readFromPosition = i;
+            return 1;
+        }
+    return 0;
+}
+
+int readFromFile(char ** parsed)
+{
+    int i;
+
+    printf("entrou em readFromFile --  EM TESTE");
+    char ** aux = malloc(parsedItemsNo * sizeof(char *));
+    for(i=0; i<readFromPosition; i++)
+        aux[i] = parsed[i];
+    if (fork() == 0)
+    {
+        int fdInput = open(parsed[writeToPosition]+1, O_RDONLY);
+        close(0); // use const
+        dup(fdInput);
+        close(fdInput);
+        execvp(aux[0], aux);
+        fprintf(stderr, "%s: Comando não encontrado.\n", aux[0]);
+        free(aux);
+    }
+    else
+        wait(0);
+    return 1;
+}
+
 int run(char ** parsed) // EM TESTE
 {
     if (findPipe(parsed))
@@ -195,6 +232,9 @@ int run(char ** parsed) // EM TESTE
     {
         return saveToFile(parsed);
     }
+
+    else if(findRedirectFromFile(parsed))
+        return readFromFile(parsed);
 
     else
     {  // Caso não  haja nenhum pipe
@@ -286,7 +326,6 @@ int pipedCommand(char ** parsed)
     pid = fork();
     if(pid == 0)
     {
-        //close(STDOUT_FILENO);
         dup2(fileDescriptor[WRITE_END], WRITE_END);
         close(fileDescriptor[READ_END]);
         close(fileDescriptor[WRITE_END]);
@@ -442,3 +481,9 @@ char * getCurrentDirNameOnly ()
     }
     return aux;
 }
+
+/*
+int strcmpv(char ** f, char ** s)
+{
+}
+*/
