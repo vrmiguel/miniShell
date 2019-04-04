@@ -62,7 +62,7 @@ int parsedItemsNo; // quantidade de palavras tokenizadas na string atual
 char cwd[BUFSIZ]; /* Inicializa string para pasta atual, respeitando o limite máximo de caracteres que o stdin pode transferir */
 char * currentDirName;// Deverá ser inicializada em initialize() e então só modificada em changeDir()
 int pipePositions[10] = {0};
-int pipeQuant = 0;
+int nPipes = 0;
 int writeToPosition  = 0;
 
 int main(int argv, char ** argc)
@@ -145,8 +145,9 @@ int run(char ** parsed) // EM TESTE
     if (findPipe(parsed))
       return pipedCommand (parsed);
 
-    else if (findRedirectToFile(parsed))
+      else
     {  // Caso não  haja nenhum pipe
+        printf("Entrando em simpleCommand\n");
         if(!strcmp(parsed[0] , "cd"))
             return changeDir(parsed);
         else if(!strcmp(parsed[0], "quit") || !strcmp(parsed[0],  "exit"))
@@ -201,9 +202,8 @@ void getAuxCommand(char ** parsed, char ** aux, int loop)
         for(c = 0; c < pipePositions[0]; c++) // Copia parsed até chegar no primeiro "|"
         {
             aux[c] = parsed[c];
-            strcpy(aux[c], parsed[c]);
             //fprintf(stderr, "aux[%d]: %s\n", c, aux[c]);
-           //printf("aux[%d]: %s\n", c, aux[c]);
+           printf("aux[%d]: %s\n", c, aux[c]);
         }
         aux[c+1] = NULL;
         return;
@@ -220,6 +220,7 @@ void getAuxCommand(char ** parsed, char ** aux, int loop)
             }
         aux[c+1] = NULL;
     }
+    printf("loop: %d", loop);
 }
 
     //Executa comandos com pipeline.
@@ -241,7 +242,8 @@ int pipedCommand(char ** parsed)
         char ** aux  = malloc(parsedItemsNo*sizeof (char *));
 
         getAuxCommand(parsed, aux, 0);
-
+        printf("Depois do pipe, primeiro: %s", aux[0]);
+        printf("Depois do pipe, segundo: %s", aux[3-2]);
         execvp(aux[0], aux);
         fprintf(stderr, "%s:Comando não encontrado.", aux[0]);
         free(aux);
@@ -254,13 +256,10 @@ int pipedCommand(char ** parsed)
             dup2(fileDescriptor[READ_END], READ_END);
             close(fileDescriptor[WRITE_END]);
             close(fileDescriptor[READ_END]);
-
-            int i, c=0;
             char ** aux  = malloc(parsedItemsNo*sizeof (char *));
-
-            getAuxCommand(parsed, aux, 1);
-
-            //const char* aux[] = {"grep", "a.out", 0};
+            getAuxCommand(parsed, aux, 3-2);
+            printf("Depois do pipe, primeiro: %s", aux[0]);
+            printf("Depois do pipe, segundo: %s", aux[3-2]);
             execvp(aux[0], aux);
             fprintf(stderr, "%s: Comando não encontrado.", aux[0]);
             free(aux);
@@ -275,29 +274,42 @@ int pipedCommand(char ** parsed)
             wait(0);
         }
     }
-    pipePositions[0] = 0;
-    pipePositions[1] = 0;
+    int i;
+    for(i=0; i<10; i++)
+        pipePositions[i] = 0;
     return 2;
 }
-
     /* Encontra pipes no comando lido, salvando suas posições em pipePositions */
 int findPipe(char ** parsed) // TODO: encontrar mais de 2 forks
 {
-    int i, j, c=0;
+    int i, j, c=0, nPipes=0;
     for(i=0; i<parsedItemsNo; i++) // Varre os comandos lidos procurando por um caracter "|"
-        if(!strcmp(parsed[i], "|"))
+        if(strcmp(parsed[i], "|")==0)
+        {
+            printf("Encontrei fork :)");
             for(j=0; j<11; j++)
-                if (pipePositions[c] == 0)
+                if (pipePositions[c]==0) // Se for diferente de 0, entre
                 {
+                    nPipes++;
                     pipePositions[c] = i;
+                    printf("pipe em %d", i);
                     c++;
                     break;
                 }
-    pipePositions[c] = parsedItemsNo;
-
+           }
+    if(nPipes > 0)
+    {
+       pipePositions[c] = parsedItemsNo;
+    }
     for(i=0; i<=c; i++)
         printf("a %d\n", pipePositions[i]);
-    return pipePositions[0] != 0; // Retorna verdadeiro se algum "|" foi econtrado, falso caso contrário.
+
+    printf("nPipes: %d\n", nPipes);
+
+    if(nPipes > 0)
+        return true; // Retorna verdadeiro se algum "|" foi encontrado, falso caso contrário.
+    else
+        return false;
 }
 
 void typePrompt()
@@ -378,3 +390,9 @@ char * getCurrentDirNameOnly ()
     return aux;
 }
 
+/*
+int strcmpv(char ** f, char ** s)
+{
+
+}
+*/
