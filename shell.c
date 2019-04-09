@@ -41,7 +41,7 @@
         parsed, input
 */
 
-        //Protótipos
+//Protótipos
 char *getInput(void);
 char **parser(char *input);
 void typePrompt(void);
@@ -55,7 +55,7 @@ char * getCurrentDirNameOnly(void);
 int  findPipe(char ** parsed);
 int  findRedirectToFile(char ** parsed);
 
-    //Variáveis globais
+//Variáveis globais
 char username[32]; // guardará o nome do usuário, com no máximo 32 caracteres, como estipulado pela biblioteca GNU C (glibc).
 char hostname[64]; // guardará o nome do host, com no máximo 64 caracteres, como estipulado pela biblioteca GNU C (getconf HOST_NAME_MAX)
 int parsedItemsNo; // quantidade de palavras tokenizadas na string atual
@@ -147,7 +147,7 @@ char *getInput()
     return input;
 }
 
-    /* Divide a string dada pela variável input  */
+/* Divide a string dada pela variável input  */
 char **parser(char *input)
 {
     char **parsed = malloc(20 * sizeof(char *)); //Aloca espaço para vinte palavras
@@ -187,7 +187,6 @@ int findRedirectToFile(char ** parsed)
     return 0;
 }
 
-
 int findRedirectFromFile(char ** parsed)
 {
     int i;
@@ -226,19 +225,16 @@ int readFromFile(char ** parsed)
 int run(char ** parsed) // EM TESTE
 {
     if (findPipe(parsed))
-      return pipedCommand (parsed);
+        return pipedCommand(parsed);
 
     else if(findRedirectToFile(parsed))
-    {
         return saveToFile(parsed);
-    }
 
     else if(findRedirectFromFile(parsed))
         return readFromFile(parsed);
 
     else
     {  // Caso não  haja nenhum pipe
-        printf("Entrando em simpleCommand\n");
         if(!strcmp(parsed[0] , "cd"))
             return changeDir(parsed);
         else if(!strcmp(parsed[0], "quit") || !strcmp(parsed[0],  "exit"))
@@ -263,18 +259,17 @@ int simpleCommand(char ** parsed)
 {
     pid_t testPID; // valor para teste pai/filho
 
-    //printf("Entrou aqui?  %s \n", parsed[1]);
     testPID = fork();
     int status;
     if ( testPID == 0 )
     {
         execvp(parsed[0], parsed);
-        printf("%s: comando não encontrado\n", parsed[0]);
+        fprintf(stderr, "%s: comando não encontrado\n", parsed[0]);
     }
     else if (testPID < 0)
     {
         printf("Erro ao produzir fork.");
-        return -1;
+        return 0;
     }
     else
     {
@@ -284,124 +279,99 @@ int simpleCommand(char ** parsed)
     return 1; // sucesso
 }
 
-    // Obtem comandos auxiliares para execução em pipedCommand()
-void getAuxCommand(char ** parsed, char ** aux)
+// Obtem comandos auxiliares para execução em pipedCommand()
+void getAuxCommand(char ** parsed, char ** aux, int loop)
 {
     int i, c;
     if (loop == 0)
     {
         for(c = 0; c < pipePositions[0]; c++) // Copia parsed até chegar no primeiro "|"
-        {
             aux[c] = parsed[c];
-            //fprintf(stderr, "aux[%d]: %s\n", c, aux[c]);
-           fprintf(stderr, "aux[%d]: %s\n", c, aux[c]);
-        }
-        fprintf(stderr, "loop: %d", loop);
-        aux[c+1] = NULL;
+        //fprintf(stderr, "loop: %d", loop);
+        aux[c+1] = NULL; // Argumentos para a família exec devem terminar com NULL
         return;
     }
     else
     {
         c = 0;
         for(i=pipePositions[loop-1]+1;  i<pipePositions[loop];  i++)
-            {
-                  aux[c] = parsed[i];
-                  fprintf(stderr, "aux[%d]: %s\n", c, aux[c]);
-                  c++;
-            }
+        {
+            aux[c] = parsed[i];
+            c++;
+        }
         aux[c+1] = NULL;
     }
-    fprintf(stderr, "loop: %d", loop);
+    //fprintf(stderr, "loop: %d\n", loop);
 }
 
-    //Executa comandos com pipeline.
-int pipedCommand(char ** parsed)
-{
-    pid_t pid;
-    int fileDescriptor[2];
-    if (pipe(fileDescriptor) == -1){
-        fprintf(stderr, "Falha na criação de pipe.\n");
-        return 0;
-    }
-    pid = fork();
-    if(pid == 0)
+int pipedCommand(char** parsed){
+    int nCommands = nPipes + 1;
+    int fileDescriptor[10][2], i=0; // todo: mudar alocação
+    char ** aux = NULL;
+    for(i=0; i<nCommands; i++)
     {
-        dup2(fileDescriptor[WRITE_END], WRITE_END);
-        close(fileDescriptor[READ_END]);
-        close(fileDescriptor[WRITE_END]);
-        char ** aux  = malloc(parsedItemsNo*sizeof (char *));
-
-        getAuxCommand(parsed, aux);
-        printf("Depois do pipe, primeiro: %s", aux[0]);
-        printf("Depois do pipe, segundo: %s", aux[3-2]);
-        execvp(aux[0], aux);
-        fprintf(stderr, "%s:Comando não encontrado.\n", aux[0]);
-        free(aux);
-        return 0;
-    }
-    else{
-        pid = fork();
-        if(pid == 0)
-        {
-            loop++;
-            dup2(fileDescriptor[READ_END], READ_END);
-            close(fileDescriptor[WRITE_END]);
-            close(fileDescriptor[READ_END]);
-            char ** aux  = malloc(parsedItemsNo*sizeof (char *));
-            getAuxCommand(parsed, aux);
-            printf("Depois do pipe, primeiro: %s", aux[0]);
-            printf("Depois do pipe, segundo: %s", aux[3-2]);
-            execvp(aux[0], aux);
-            fprintf(stderr, "%s: comando não encontrado.\n", aux[0]);
+        if (aux != NULL)
             free(aux);
-            return 0;
-        }
-        else
-        {
-            int status;
-            close(fileDescriptor[READ_END]);
-            close(fileDescriptor[WRITE_END]);
-            wait(0);
-            wait(0);
-            //loop = loop + 2;
-            // Ideia: dar loop++; aqui ??
+        char ** aux = malloc(parsedItemsNo * sizeof(char*));
+        //fprintf(stderr, "i=%d", i);
+        getAuxCommand(parsed, aux, i);
+        if(i!=nCommands-1)
+            if(pipe(fileDescriptor[i])<0)
+            {
+                fprintf(stderr, "Erro na criação de pipe.\n");
+                return -2;
+            }
+        if(fork()==0) // Processo filho um
+        {           
+            if(i!=nCommands-1)
+            {
+                dup2(fileDescriptor[i][WRITE_END],STDOUT_FILENO);
+                close(fileDescriptor[i][READ_END]);
+                close(fileDescriptor[i][WRITE_END]);
+            }
+
+            if(i!=0)
+            {
+                dup2(fileDescriptor[i-1][READ_END],STDIN_FILENO);
+                close(fileDescriptor[i-1][WRITE_END]);
+                close(fileDescriptor[i-1][READ_END]);
+            }
+            //fprintf(stderr, "\ni=%d aux[%d] after gAX: %s\n", i, 0, aux[0]);
+            //fprintf(stderr, "\ni=%daux[%d] after gAX: %s\n", i, 3-2, aux[3-2]);
+            execvp(aux[0], aux);
+            perror("Exec Pipe");
+            exit(-3);
+        } else
+        if(i!=0) {//second process
+            close(fileDescriptor[i - 1][READ_END]);
+            close(fileDescriptor[i - 1][WRITE_END]);
         }
     }
-    int i;
-    for(i=0; i<10; i++)
-        pipePositions[i] = 0;
-    return 2;
+    for(i=0; i<nCommands; i++)
+        wait(NULL);
+	for(i=0; i<10; i++)
+	    pipePositions[i] = 0;
+	nPipes = 0;
 }
-    /* Encontra pipes no comando lido, salvando suas posições em pipePositions */
+
+/* Encontra pipes no comando lido, salvando suas posições em pipePositions */
 int findPipe(char ** parsed) // TODO: encontrar mais de 2 forks
 {
-    int i, j, c=0, nPipes=0;
+    int i, j, c=0;
     for(i=0; i<parsedItemsNo; i++) // Varre os comandos lidos procurando por um caracter "|"
         if(strcmp(parsed[i], "|")==0)
-        {
             for(j=0; j<11; j++)
                 if (pipePositions[c]==0) // Se a posição atual ainda .TODO
                 {
                     nPipes++;
                     pipePositions[c] = i;
-                    printf("pipe em %d", i);
                     c++;
                     break;
                 }
-           }
     if(nPipes > 0)
-    {
-       pipePositions[c] = parsedItemsNo;
-    }
-    for(i=0; i<=c; i++)
-        printf("a %d\n", pipePositions[i]);
-
-    printf("nPipes: %d\n", nPipes);
-
-    if(nPipes > 0)
-        return true; // Retorna verdadeiro se algum "|" foi encontrado, falso caso contrário.
-    else
-        return false;
+        pipePositions[c] = parsedItemsNo;
+    
+	return nPipes > 0; // Retorna verdadeiro se algum "|" foi encontrado, falso caso contrário.
 }
 
 void typePrompt()
@@ -464,8 +434,8 @@ void initialize()
     //username = pw->pw_name;
 }
 
-    /* Processa a variável cwd para posterior exibição correta em typePrompt()
-        exemplo: "/home/vinicius/Downloads" --> "/Downloads"                 */
+/* Processa a variável cwd para posterior exibição correta em typePrompt()
+    exemplo: "/home/vinicius/Downloads" --> "/Downloads"                 */
 char * getCurrentDirNameOnly ()
 {
     char stringAux[BUFSIZ];
@@ -481,9 +451,3 @@ char * getCurrentDirNameOnly ()
     }
     return aux;
 }
-
-/*
-int strcmpv(char ** f, char ** s)
-{
-}
-*/
