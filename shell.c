@@ -24,29 +24,11 @@
 #define WRITE_END 1
 #define READ_END 0
 
-/*
-    casos com erro: "ls" --> não é possível acessar ''$'\350''+'$'\307'')'$'\201\177': Arquivo ou diretório não encontrado
-                    "ls -l -a" --> sem retorno. ls -la funcionaria, no entanto
-                    "ifconfig" --> erro obtendo informações da interface: %s: dispositivo não encontrado
-                    "cd Área\ de\ Trabalho/" --> se torna irresponsivo (possível limitação de chdir com utf-8)
-                    "who" --> não exibe nada para qualquer caso
-    comandos implementados (ou quase lá):
-    TO-DO:
-        mkdir
-        chmod
-        checar por built-ins em pipes
-        implementar vetor 'commands', feito a partir de parsed, contendo
-        a cadeia de comandos a ser executada.
-    para liberar:
-        parsed, input
-*/
-
 //Protótipos
 char *getInput(void);
 char **parser(char *input);
 void typePrompt(void);
 int run(char ** parsed);
-int stringCompare(int str1Length, char * str1, char *str2);
 int changeDir(char ** parsed);
 void initialize(void);
 int simpleCommand(char ** parsed);
@@ -63,16 +45,17 @@ char cwd[BUFSIZ]; /* Inicializa string para pasta atual, respeitando o limite m�
 char * currentDirName;// Deverá ser inicializada em initialize() e então só modificada em changeDir()
 int pipePositions[10] = {0};
 int nPipes = 0;
-int loop = 0;
 int writeToPosition = 0;
 int readFromPosition = 0;
+int bg = false;
 
 int main(int argv, char ** argc)
 {
     initialize();
     for (;;)
     {
-        typePrompt(); // Exibe prompt padrão de digitação
+        if(bg == false)
+            typePrompt(); // Exibe prompt padrão de digitação
         int ret; // Variável para teste de retorno de execução | execution r
         char *input = getInput(); // Adquira input
         char ** parsed = parser(input);
@@ -85,7 +68,6 @@ int main(int argv, char ** argc)
         free(parsed);
         if (ret == -1)
             break;
-        loop = 0;
     }
     printf("Closing miniShell\n");
     return 0;
@@ -93,16 +75,13 @@ int main(int argv, char ** argc)
 
 int saveToFile(char ** parsed)
 {
-
-    int out = open(parsed[writeToPosition+1], O_RDWR|O_CREAT|O_APPEND, 0600);
+    int out = open(parsed[writeToPosition+1], O_RDWR|O_CREAT|O_TRUNC, 0600);
     if (out == - 1)
     {
         fprintf(stderr, "Erro em criação de arquivo \"%s\"", parsed[writeToPosition+1] );
         return 0;
     }
-
     int output = dup(fileno(stdout));
-
     if (dup2(out, fileno(stdout)) == -1)
     {
         fprintf(stderr, "Problema em redirecionamento de stdout.\n");
@@ -110,22 +89,22 @@ int saveToFile(char ** parsed)
     }
 
     int i;
-    char ** aux = malloc(parsedItemsNo * sizeof(char *));
-    for(i=0; i<writeToPosition; i++)
-        aux[i] = parsed[i];
     if (fork() == 0)
     {
+        char ** aux = malloc(parsedItemsNo * sizeof(char *));
+        for(i=0; i<writeToPosition; i++)
+            aux[i] = parsed[i];
         execvp(aux[0], aux);
         fprintf(stderr, "%s: Comando não encontrado.\n", aux[0]);
         free(aux);
     }
     else
         wait(0);
-
     fflush(stdout);
     close(out);
     dup2(output, fileno(stdout));
     close(output);
+    writeToPosition = 0;
     return 1;
 }
 
@@ -133,7 +112,7 @@ char *getInput()
 {
     /* Lê e retorna caracteres do stdin. Por motivos de economia de memória, o programa salva a
     string do usuário de maneira dinâmicamente crescente. */
-    char *input = (char *) malloc(BUFSIZ*sizeof(char)); //Aloca espaço para letras (tamanho máximo de buffer de stdin)
+    char *input = malloc(BUFSIZ*sizeof(char)); //Aloca espaço para letras (tamanho máximo de buffer de stdin)
     char c = getchar(); // Recebe primeira letra..
     input[0] = c;       //..e inicializa input com ela.
     int i;
@@ -142,7 +121,6 @@ char *getInput()
     for(i=1; (i < BUFSIZ - 2) && ((c = getchar()) != '\n') && (c != EOF); ++i)
         input[i] = c;    //Insere letra no vetor
 
-    //input = realloc(input, (i+1)*sizeof(char)); // Aloca espaço para terminador de string
     input[i] = '\0';   //Insere terminador de string.
     return input;
 }
@@ -203,26 +181,50 @@ int readFromFile(char ** parsed)
 {
     int i;
 
-    printf("entrou em readFromFile --  EM TESTE");
-    char ** aux = malloc(parsedItemsNo * sizeof(char *));
-    for(i=0; i<readFromPosition; i++)
-        aux[i] = parsed[i];
-    if (fork() == 0)
+    fprintf(stderr, "entrou em readFromFile --  EM TESTE\n");
+
+    for(i=0; i<parsedItemsNo; i++)
+        printf("%s\n", parsed[i]);
+
+    int inp = open(parsed[readFromPosition+1], O_RDONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+    if (inp == -1)
     {
-        int fdInput = open(parsed[writeToPosition]+1, O_RDONLY);
-        close(0); // use const
-        dup(fdInput);
-        close(fdInput);
+        fprintf(stderr, "Erro em leitura de arquivo \"%s\"", parsed[readFromPosition+1]);
+        return 0;
+    }
+
+    pid_t pid = fork();
+    int input = dup(fileno(stdin));
+    if (dup2(inp, fileno(stdin)) == -1)
+    {
+        fprintf(stderr, "Problema em redirecionamento de stdin.\n");
+        return 0;
+    }
+    char ** aux = malloc(readFromPosition * sizeof(char *));
+    if (pid == 0)
+    {
+        for(i=0; i<readFromPosition; i++)
+            aux[i] = parsed[i];
         execvp(aux[0], aux);
         fprintf(stderr, "%s: Comando não encontrado.\n", aux[0]);
         free(aux);
     }
+
+    else if (pid < 0)
+        fprintf(stderr, "Erro em criação de fork. \n");
+
     else
         wait(0);
+
+    fflush(stdout);
+    close(inp);
+    dup2(input, fileno(stdin));
+    close(input);
+    readFromPosition = 0;
     return 1;
 }
 
-int run(char ** parsed) // EM TESTE
+int run(char ** parsed)
 {
     if (findPipe(parsed))
         return pipedCommand(parsed);
@@ -250,18 +252,35 @@ int run(char ** parsed) // EM TESTE
             printf("%s\n", cwd);
             return 1;
         }
-        else
-            return simpleCommand(parsed);
+        else if(!strcmp(parsed[0], "help"))
+        {
+            printf("Este shell suporta: \n");
+            printf("  -Comandos simples, tais como \'ls\' ou \'ls -li\'\n");
+            printf("  -Salvamento de comando simples em arquivo. Ex: \'ls -li > txt\'\n");
+            printf("  -Leitura de arquivo para comando simples. Ex: \'sort < txt\'\n");
+            printf("  -Comandos encadeados em pipe (no máximo dez pipes)\n");
+            printf("  -Execução de comandos simples e encadeados em background.\n");
+            return 0;
+        }
+            else return simpleCommand(parsed);
     }
 }
 
 int simpleCommand(char ** parsed)
 {
     pid_t testPID; // valor para teste pai/filho
-
     testPID = fork();
+
+    if(!strcmp(parsed[parsedItemsNo-1], "&"))
+    {
+        bg = true;
+        free(parsed[parsedItemsNo-1]);
+        parsed[parsedItemsNo-1] = NULL;
+        parsedItemsNo--;
+    }
+
     int status;
-    if ( testPID == 0 )
+    if (testPID == 0)
     {
         execvp(parsed[0], parsed);
         fprintf(stderr, "%s: comando não encontrado\n", parsed[0]);
@@ -272,9 +291,8 @@ int simpleCommand(char ** parsed)
         return 0;
     }
     else
-    {
-        waitpid(-1, &status, WUNTRACED);
-    }
+        if(!bg)
+            waitpid(-1, &status, WUNTRACED);
 
     return 1; // sucesso
 }
@@ -306,14 +324,15 @@ void getAuxCommand(char ** parsed, char ** aux, int loop)
 
 int pipedCommand(char** parsed){
     int nCommands = nPipes + 1;
-    int fileDescriptor[10][2], i=0; // todo: mudar alocação
+    int fileDescriptor[10][2], i;
+
     char ** aux = NULL;
+
     for(i=0; i<nCommands; i++)
     {
         if (aux != NULL)
             free(aux);
         char ** aux = malloc(parsedItemsNo * sizeof(char*));
-        //fprintf(stderr, "i=%d", i);
         getAuxCommand(parsed, aux, i);
         if(i!=nCommands-1)
             if(pipe(fileDescriptor[i])<0)
@@ -321,41 +340,40 @@ int pipedCommand(char** parsed){
                 fprintf(stderr, "Erro na criação de pipe.\n");
                 return -2;
             }
-        if(fork()==0) // Processo filho um
-        {           
+        if(fork()==0) // Primeiro processo filho
+        {
             if(i!=nCommands-1)
             {
                 dup2(fileDescriptor[i][WRITE_END],STDOUT_FILENO);
                 close(fileDescriptor[i][READ_END]);
                 close(fileDescriptor[i][WRITE_END]);
             }
-
             if(i!=0)
             {
                 dup2(fileDescriptor[i-1][READ_END],STDIN_FILENO);
                 close(fileDescriptor[i-1][WRITE_END]);
                 close(fileDescriptor[i-1][READ_END]);
             }
-            //fprintf(stderr, "\ni=%d aux[%d] after gAX: %s\n", i, 0, aux[0]);
-            //fprintf(stderr, "\ni=%daux[%d] after gAX: %s\n", i, 3-2, aux[3-2]);
             execvp(aux[0], aux);
-            perror("Exec Pipe");
-            exit(-3);
-        } else
-        if(i!=0) {//second process
-            close(fileDescriptor[i - 1][READ_END]);
-            close(fileDescriptor[i - 1][WRITE_END]);
+            fprintf(stderr, "%s: Comando não encontrado.\n", aux[0]);
+            return -2;
         }
+        else
+            if(i!=0)
+            {
+                close(fileDescriptor[i - 1][READ_END]);
+                close(fileDescriptor[i - 1][WRITE_END]);
+            }
     }
     for(i=0; i<nCommands; i++)
         wait(NULL);
-	for(i=0; i<10; i++)
-	    pipePositions[i] = 0;
-	nPipes = 0;
+    for(i=0; i<10; i++) // Reseta posições
+        pipePositions[i] = 0;
+    nPipes = 0; // Reseta número encontrado de pipes
 }
 
 /* Encontra pipes no comando lido, salvando suas posições em pipePositions */
-int findPipe(char ** parsed) // TODO: encontrar mais de 2 forks
+int findPipe(char ** parsed)
 {
     int i, j, c=0;
     for(i=0; i<parsedItemsNo; i++) // Varre os comandos lidos procurando por um caracter "|"
@@ -370,8 +388,8 @@ int findPipe(char ** parsed) // TODO: encontrar mais de 2 forks
                 }
     if(nPipes > 0)
         pipePositions[c] = parsedItemsNo;
-    
-	return nPipes > 0; // Retorna verdadeiro se algum "|" foi encontrado, falso caso contrário.
+
+    return nPipes > 0; // Retorna verdadeiro se algum "|" foi encontrado, falso caso contrário.
 }
 
 void typePrompt()
@@ -380,14 +398,13 @@ void typePrompt()
 }
 
     /* muda o diretório do processo pai */
-int changeDir(char ** parsed) // currentDirName deve ser modificado
+int changeDir(char ** parsed)
 {
-    if(parsedItemsNo == 1 || !strcmp(parsed[1],"~") || !strcmp(parsed[1],"..")) // Comandos padrão para retorno para home
-    {
+    if(parsedItemsNo == 1 || !strcmp(parsed[1],"~")) // Comandos padrão para retorno para home
+    { // TODO: mudar 'cd ..'
         /* procura o ambiente do processo chamante pela variável HOME para que o chdir possa mudar o ambiente da execução para pasta HOMEs */
         printf("Exibição de teste: chdir\n");
         chdir(getenv("HOME"));
-        //char * aux = "";
         currentDirName = "";
     }
     else
@@ -396,16 +413,14 @@ int changeDir(char ** parsed) // currentDirName deve ser modificado
         for(int i = 0; i<parsedItemsNo; i++)
             printf("parsed[%d] = %s\n", i, parsed[i]);
 
-        printf("Iniciando concatenação\n\n");
+        //printf("Iniciando concatenação\n\n");
 
         for(int i=2; i<parsedItemsNo; i++)
         {
-            strcat(parsed[1], "\\ ");
+            strcat(parsed[1], " ");
             strcat(parsed[1], parsed[i]);
-            printf("Novo parsed[1]: %s, quando i=%d\n", parsed[1], i);
+            //printf("Novo parsed[1]: %s, quando i=%d\n", parsed[1], i);
         }
-
-        strcat(parsed[1], "/");
 
         if(chdir(parsed[1]))
         {
@@ -421,7 +436,8 @@ int changeDir(char ** parsed) // currentDirName deve ser modificado
 
 void initialize()
 {
-    printf("\n   -------- miniShell --------\n\nVinícius R. Miguel & Gustavo B. de Oliveira\ngithub.com/vrmiguel/miniShell -- Unifesp -- Março de 2019\n\n");
+    printf("\n   -------- miniShell --------\n\nVinícius R. Miguel & Gustavo B. de Oliveira\ngithub.com/vrmiguel/miniShell -- Unifesp -- Março de 2019\n");
+    printf("Digite \'help\' para obter ajuda.\n\n");
     getcwd(cwd, BUFSIZ); //Grava o nome da pasta atual
     //printf("CWD: %s\n", cwd);
     currentDirName = getCurrentDirNameOnly(); // Formata a string da pasta atual para exibição em typePrompt()
@@ -439,13 +455,12 @@ void initialize()
 char * getCurrentDirNameOnly ()
 {
     char stringAux[BUFSIZ];
-    getcwd(stringAux, BUFSIZ);
+    getcwd(stringAux, BUFSIZ); // Armazena diretório atual
     char *aux;
     char *token = strtok(stringAux, "/"); // Cria primeiro token (separador "/") e mantém o ponteiro stringAux em estado interno.
-    for(;;)
-    {
+    for (;;) {
         token = strtok(NULL, "/"); // Adiciona mais um token do ponteiro em estado interno (stringAux).
-        if(token == NULL)
+        if (token == NULL)
             break;
         aux = token;
     }
