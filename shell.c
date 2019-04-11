@@ -181,11 +181,6 @@ int readFromFile(char ** parsed)
 {
     int i;
 
-    fprintf(stderr, "entrou em readFromFile --  EM TESTE\n");
-
-    for(i=0; i<parsedItemsNo; i++)
-        printf("%s\n", parsed[i]);
-
     int inp = open(parsed[readFromPosition+1], O_RDONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
     if (inp == -1)
     {
@@ -193,30 +188,31 @@ int readFromFile(char ** parsed)
         return 0;
     }
 
-    pid_t pid = fork();
     int input = dup(fileno(stdin));
     if (dup2(inp, fileno(stdin)) == -1)
     {
         fprintf(stderr, "Problema em redirecionamento de stdin.\n");
         return 0;
     }
+
     char ** aux = malloc(readFromPosition * sizeof(char *));
-    if (pid == 0)
+    for(i=0; i<readFromPosition; i++)
+        aux[i] = parsed[i];
+
+    //pid_t pid = fork();
+
+    if (fork() == 0)
     {
-        for(i=0; i<readFromPosition; i++)
-            aux[i] = parsed[i];
         execvp(aux[0], aux);
         fprintf(stderr, "%s: Comando não encontrado.\n", aux[0]);
         free(aux);
     }
-
-    else if (pid < 0)
-        fprintf(stderr, "Erro em criação de fork. \n");
-
+    //else if (pid < 0)
+    //    fprintf(stderr, "Erro em criação de fork. \n");
     else
         wait(0);
 
-    fflush(stdout);
+    //fflush(stdout);
     close(inp);
     dup2(input, fileno(stdin));
     close(input);
@@ -319,15 +315,21 @@ void getAuxCommand(char ** parsed, char ** aux, int loop)
         }
         aux[c+1] = NULL;
     }
-    //fprintf(stderr, "loop: %d\n", loop);
 }
 
 int pipedCommand(char** parsed){
     int nCommands = nPipes + 1;
     int fileDescriptor[10][2], i;
 
-    char ** aux = NULL;
+    if(!strcmp(parsed[parsedItemsNo-1], "&"))
+    {
+        bg = true;
+        free(parsed[parsedItemsNo-1]);
+        parsed[parsedItemsNo-1] = NULL;
+        parsedItemsNo--;
+    }
 
+    char ** aux = NULL;
     for(i=0; i<nCommands; i++)
     {
         if (aux != NULL)
@@ -365,11 +367,14 @@ int pipedCommand(char** parsed){
                 close(fileDescriptor[i - 1][WRITE_END]);
             }
     }
-    for(i=0; i<nCommands; i++)
-        wait(NULL);
+    if (!bg)
+      for(i=0; i<nCommands; i++)
+          wait(NULL);
     for(i=0; i<10; i++) // Reseta posições
         pipePositions[i] = 0;
+    free(aux);
     nPipes = 0; // Reseta número encontrado de pipes
+    return 1;
 }
 
 /* Encontra pipes no comando lido, salvando suas posições em pipePositions */
