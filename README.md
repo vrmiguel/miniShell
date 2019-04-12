@@ -2,6 +2,8 @@
 
 Implementation (work in progress) of a basic Unix shell written in C as the first programming assignment for the Operational Systems course at the Federal University of São Paulo, under Prof. Bruno Kimura, Ph.D.
 
+Try it online [here.](https://minishell.jsbach.repl.run/)
+
 Example:
 
 
