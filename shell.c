@@ -430,7 +430,7 @@ int change_dir(char ** parsed)
 
 void initialize()
 {
-    printf("\n   -------- miniShell --------\n\nVinícius R. Miguel & Gustavo B. de Oliveira\ngithub.com/vrmiguel/miniShell -- Unifesp -- Março de 2019\n");
+    printf("\n   -------- miniShell --------\n\nVinícius R. Miguel, Lucas S. Vaz & Gustavo B. de Oliveira\ngithub.com/vrmiguel/miniShell -- Unifesp -- Março de 2019\n");
     printf("Digite \'help\' para obter ajuda.\n\n");
     getcwd(cwd, BUFSIZ); //Grava o nome da pasta atual
     //printf("CWD: %s\n", cwd);
