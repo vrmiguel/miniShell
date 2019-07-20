@@ -17,7 +17,7 @@ Try it online [here.](https://minishell.jsbach.repl.run/)
 
 Example:
 
-![alt text](https://raw.githubusercontent.com/vrmiguel/miniShell/master/print.png?token=Aiqlgm5_CHEzLbQM1BbKi-CqnWMILWeFks5cuL1BwA%3D%3D)
+![alt text](https://raw.githubusercontent.com/vrmiguel/miniShell/master/print.jpg)
 
 By:
    Vinícius Rodrigues Miguel ([vrmiguel](https://github.com/vrmiguel)), Lucas S. Vaz  ([lucasssvaz](https://github.com/lucasssvaz)) & Gustavo Bárbaro de Oliveira ([GustavoBarbaro](https://github.com/GustavoBarbaro)).
