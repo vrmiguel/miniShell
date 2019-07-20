@@ -20,4 +20,4 @@ Example:
 ![alt text](https://raw.githubusercontent.com/vrmiguel/miniShell/master/print.png?token=Aiqlgm5_CHEzLbQM1BbKi-CqnWMILWeFks5cuL1BwA%3D%3D)
 
 By:
-   Vinícius Rodrigues Miguel ([vrmiguel](https://github.com/vrmiguel)) & Gustavo Bárbaro de Oliveira ([GustavoBarbaro](https://github.com/GustavoBarbaro)).
+   Vinícius Rodrigues Miguel ([vrmiguel](https://github.com/vrmiguel)), Lucas S. Vaz ([lucasssvaz]https://github.com/vrmiguel) Gustavo Bárbaro de Oliveira ([GustavoBarbaro](https://github.com/GustavoBarbaro)).
