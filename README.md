@@ -4,7 +4,7 @@ Implementation (work in progress) of a basic Unix shell written in C as the firs
 
 What works:
    * Simple commands, such as "ls", "ls -li", "clear", "help", etc;
-   * Piped commands, such as "ls -li | tr s x". Commands with more than two pipes simultaneously than supported;
+   * Piped commands, such as "ls -li | tr s x". Commands with more than two pipelines are also supported;
    * Saving to file, such as "ls -li > file_list";
    * Reading from file, such as "sort < file_list". This sometimes fails for reasons sadly unknown to me.
   
