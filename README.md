@@ -6,7 +6,7 @@ What works:
    * Simple commands, such as "ls", "ls -li", "clear", "help", etc;
    * Piped commands, such as "ls -li | tr s x". Commands with more than two pipes simultaneously than supported;
    * Saving to file, such as "ls -li > file_list";
-   * Reading from file, such as "sort < file_list". This sometimes doesn't work, I'm not sure why, sadly.
+   * Reading from file, such as "sort < file_list". This sometimes fails for reasons sadly unknown to me.
   
 What does not work:
    * Any mixture of special operators, such as "sort -n < origin > sorted";
