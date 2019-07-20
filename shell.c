@@ -1,5 +1,5 @@
 /*
-    miniShell (https://github.com/vrmiguel/miniShell)
+    miniShell (https://github.com/vrmiguel/mini_shell)
     By Vinícius R. Miguel and Gustavo Bárbaro de Oliveira
     Prof. Bruno Kimura, Ph.D.
     Federal University of São Paulo, Mar. 2019
@@ -84,7 +84,7 @@ int main(int argv, char ** argc)
         if (!err_desc)
             break;
     }
-    printf("Closing miniShell\n");
+    printf("Closing mini_shell\n");
     return 0;
 }
 
