@@ -324,7 +324,7 @@ int piped_command(char** parsed){
     {
         if (aux != NULL)
             free(aux);
-        char ** aux = malloc(parsed_items_qnt * sizeof(char*));
+        aux = malloc(parsed_items_qnt * sizeof(char*));
         get_aux_command(parsed, aux, i);
         if(i!=n_commands-1)
             if(pipe(file_descriptor_array[i])<0)
