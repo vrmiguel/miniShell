@@ -409,6 +409,23 @@ int change_dir(char ** parsed)
 
         //printf("Iniciando concatenação\n\n");
 
+        // Calculate total length needed for all path components
+        int total_length = strlen(parsed[1]); // Length of first component
+        for(int i=2; i<parsed_items_qnt; i++)
+        {
+            total_length += 1 + strlen(parsed[i]); // +1 for space, +strlen for component
+        }
+        total_length += 1; // +1 for null terminator
+
+        // Reallocate parsed[1] with sufficient space
+        parsed[1] = realloc(parsed[1], total_length);
+        if(parsed[1] == NULL)
+        {
+            printf("miniShell: cd: Memory allocation failed\n");
+            return 1;
+        }
+
+        // Safely concatenate all path components
         for(int i=2; i<parsed_items_qnt; i++)
         {
             strcat(parsed[1], " ");
