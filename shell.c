@@ -410,10 +410,10 @@ int change_dir(char ** parsed)
         //printf("Iniciando concatenação\n\n");
 
         // Calculate total length needed for all path components
-        int total_length = strlen(parsed[1]); // Length of first component
+        int total_length = strnlen(parsed[1], 4096); // Length of first component
         for(int i=2; i<parsed_items_qnt; i++)
         {
-            total_length += 1 + strlen(parsed[i]); // +1 for space, +strlen for component
+            total_length += 1 + strnlen(parsed[i], 4096); // +1 for space, +strlen for component
         }
         total_length += 1; // +1 for null terminator
 
