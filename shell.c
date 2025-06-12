@@ -130,7 +130,7 @@ char **parser(char *input)
     char * pos;
     char *token = strtok_r(input, " ", &pos); // Cria primeiro token (separador " ") e ... TODO
     int i = 0;
-    parsed[0] = malloc(strlen(token) + 1);
+    parsed[0] = malloc(strlen(token) + 1); // Allocate space for the string + null terminator to prevent buffer overflow
     strcpy(parsed[0],token); // Inicializa parsed com o primeiro token
 
     for (;;)
@@ -140,7 +140,7 @@ char **parser(char *input)
             break;
         i++;
         //parsed = realloc(parsed, (i + 1) * sizeof(char *)); // Aloca espaço para mais uma palavra
-        parsed[i] = malloc(strlen(token) + 1);
+        parsed[i] = malloc(strlen(token) + 1); // Allocate space for the string + null terminator to prevent buffer overflow
         strcpy(parsed[i], token);
         //printf("Do Parser: %s\n", parsed[i]); // print de teste
     }
