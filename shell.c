@@ -84,6 +84,11 @@ int main(int argv, char ** argc)
         if (!err_desc)
             break;
     }
+    
+    // Free current_dir_name before exiting if it's not a static string
+    if (current_dir_name && current_dir_name[0] != '\0')
+        free(current_dir_name);
+        
     printf("Closing mini_shell\n");
     return 0;
 }
@@ -399,7 +404,13 @@ int change_dir(char ** parsed)
         /* procura o ambiente do processo chamante pela variável HOME para que o chdir possa mudar o ambiente da execução para pasta HOMEs */
         printf("Exibição de teste: chdir\n");
         chdir(getenv("HOME"));
-        current_dir_name = "";
+        
+        // Free previous memory if it's not a static string
+        if (current_dir_name && current_dir_name[0] != '\0')
+            free(current_dir_name);
+            
+        // Get the current directory name
+        current_dir_name = get_current_dir_name_only();
     }
     else
     {
@@ -422,7 +433,12 @@ int change_dir(char ** parsed)
             printf("miniShell: cd: %s: Arquivo ou diretório não encontrado\n", parsed[1]);
         }
         else
+        {
+            // Free previous memory if it's not a static string
+            if (current_dir_name && current_dir_name[0] != '\0')
+                free(current_dir_name);
             current_dir_name = get_current_dir_name_only(); // caso de sucesso
+        }
     }
     getcwd(cwd, BUFSIZ);//Grava o nome da pasta atual - TODO - desnecessário ?
     return 1;
@@ -450,7 +466,7 @@ char * get_current_dir_name_only ()
 {
     char aux_string[BUFSIZ];
     getcwd(aux_string, BUFSIZ); // Armazena diretório atual
-    char *aux;
+    char *aux = NULL;
     char *token = strtok(aux_string, "/"); // Cria primeiro token (separador "/") e mantém o ponteiro aux_string em estado interno.
     for (;;) {
         token = strtok(NULL, "/"); // Adiciona mais um token do ponteiro em estado interno (aux_string).
@@ -458,5 +474,19 @@ char * get_current_dir_name_only ()
             break;
         aux = token;
     }
-    return aux;
+    
+    // Allocate memory for the result and copy the string
+    if (aux) {
+        char *result = malloc(strlen(aux) + 1);
+        if (result) {
+            strcpy(result, aux);
+            return result;
+        }
+    }
+    
+    // Return an empty string if we couldn't get the directory name
+    char *empty = malloc(1);
+    if (empty)
+        empty[0] = '\0';
+    return empty;
 }
