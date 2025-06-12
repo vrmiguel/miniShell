@@ -130,7 +130,7 @@ char **parser(char *input)
     char * pos;
     char *token = strtok_r(input, " ", &pos); // Cria primeiro token (separador " ") e ... TODO
     int i = 0;
-    parsed[0] = malloc(strlen(token)*sizeof(char));
+    parsed[0] = malloc(strlen(token) + 1);
     strcpy(parsed[0],token); // Inicializa parsed com o primeiro token
 
     for (;;)
