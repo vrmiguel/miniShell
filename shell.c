@@ -128,14 +128,14 @@ char **parser(char *input)
 {
     char **parsed = malloc(20 * sizeof(char *)); //Aloca espaço para vinte palavras
     char * pos;
-    char *token = strtok_r(input, " ", &pos); // Cria primeiro token (separador " ") e ... TODO
+    char *token = strtok_r(input, " ", &pos); // Cria primeiro token (separador " ") e salva a posição em pos para futuras chamadas
     int i = 0;
     parsed[0] = malloc(strlen(token)*sizeof(char));
     strcpy(parsed[0],token); // Inicializa parsed com o primeiro token
 
     for (;;)
     {
-        token = strtok_r(NULL, " ", &pos); // .. TODO
+        token = strtok_r(NULL, " ", &pos); // Continua a tokenização a partir da posição salva em pos
         if (token == NULL) //Caso encontrada o fim da string original, feche o loop
             break;
         i++;
