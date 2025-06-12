@@ -84,6 +84,13 @@ int main(int argv, char ** argc)
         if (!err_desc)
             break;
     }
+    
+    // Free the dynamically allocated current_dir_name before exiting
+    if (current_dir_name != NULL && current_dir_name[0] != '\0') {
+        free(current_dir_name);
+        current_dir_name = NULL;
+    }
+    
     printf("Closing mini_shell\n");
     return 0;
 }
@@ -394,12 +401,22 @@ void type_prompt()
     /* muda o diretório do processo pai */
 int change_dir(char ** parsed)
 {
+    // Free previous current_dir_name if it's not an empty string literal
+    if (current_dir_name != NULL && current_dir_name[0] != '\0') {
+        free(current_dir_name);
+        current_dir_name = NULL;
+    }
+
     if(parsed_items_qnt == 1 || !strcmp(parsed[1],"~")) // Comandos padrão para retorno para home
     { // TODO: mudar 'cd ..'
         /* procura o ambiente do processo chamante pela variável HOME para que o chdir possa mudar o ambiente da execução para pasta HOMEs */
         printf("Exibição de teste: chdir\n");
         chdir(getenv("HOME"));
-        current_dir_name = "";
+        // Allocate empty string
+        current_dir_name = malloc(1);
+        if (current_dir_name != NULL) {
+            current_dir_name[0] = '\0';
+        }
     }
     else
     {
@@ -420,6 +437,11 @@ int change_dir(char ** parsed)
         {
             // Se entrou aqui, houve algum erro na execução de chdir()
             printf("miniShell: cd: %s: Arquivo ou diretório não encontrado\n", parsed[1]);
+            // Allocate empty string since we failed to change directory
+            current_dir_name = malloc(1);
+            if (current_dir_name != NULL) {
+                current_dir_name[0] = '\0';
+            }
         }
         else
             current_dir_name = get_current_dir_name_only(); // caso de sucesso
@@ -450,7 +472,7 @@ char * get_current_dir_name_only ()
 {
     char aux_string[BUFSIZ];
     getcwd(aux_string, BUFSIZ); // Armazena diretório atual
-    char *aux;
+    char *aux = NULL;
     char *token = strtok(aux_string, "/"); // Cria primeiro token (separador "/") e mantém o ponteiro aux_string em estado interno.
     for (;;) {
         token = strtok(NULL, "/"); // Adiciona mais um token do ponteiro em estado interno (aux_string).
@@ -458,5 +480,20 @@ char * get_current_dir_name_only ()
             break;
         aux = token;
     }
-    return aux;
+    
+    // Return a dynamically allocated copy of the string instead of a pointer to the local array
+    if (aux != NULL) {
+        char *result = malloc(strlen(aux) + 1);
+        if (result != NULL) {
+            strcpy(result, aux);
+            return result;
+        }
+    }
+    
+    // Return an empty string if aux is NULL or malloc fails
+    char *empty = malloc(1);
+    if (empty != NULL) {
+        empty[0] = '\0';
+    }
+    return empty;
 }
