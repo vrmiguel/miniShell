@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <string.h>
+#include <string.h>  // For strdup, strcpy, etc.
 #include <errno.h>
 #include <pwd.h>
 #include <sys/types.h>
@@ -84,6 +84,13 @@ int main(int argv, char ** argc)
         if (!err_desc)
             break;
     }
+    
+    // Free allocated memory before exiting
+    if (current_dir_name != NULL) {
+        free(current_dir_name);
+        current_dir_name = NULL;
+    }
+    
     printf("Closing mini_shell\n");
     return 0;
 }
@@ -399,7 +406,14 @@ int change_dir(char ** parsed)
         /* procura o ambiente do processo chamante pela variável HOME para que o chdir possa mudar o ambiente da execução para pasta HOMEs */
         printf("Exibição de teste: chdir\n");
         chdir(getenv("HOME"));
-        current_dir_name = "";
+        // Free previous value to avoid memory leak
+        if (current_dir_name != NULL && current_dir_name[0] != '\0') {
+            free(current_dir_name);
+        }
+        current_dir_name = strdup(""); // Allocate empty string to be consistent with our memory management approach
+        if (current_dir_name == NULL) {
+            fprintf(stderr, "Memory allocation failed in change_dir\n");
+        }
     }
     else
     {
@@ -421,8 +435,13 @@ int change_dir(char ** parsed)
             // Se entrou aqui, houve algum erro na execução de chdir()
             printf("miniShell: cd: %s: Arquivo ou diretório não encontrado\n", parsed[1]);
         }
-        else
+        else {
+            // Free previous value to avoid memory leak
+            if (current_dir_name != NULL && current_dir_name[0] != '\0') {
+                free(current_dir_name);
+            }
             current_dir_name = get_current_dir_name_only(); // caso de sucesso
+        }
     }
     getcwd(cwd, BUFSIZ);//Grava o nome da pasta atual - TODO - desnecessário ?
     return 1;
@@ -434,6 +453,8 @@ void initialize()
     printf("Digite \'help\' para obter ajuda.\n\n");
     getcwd(cwd, BUFSIZ); //Grava o nome da pasta atual
     //printf("CWD: %s\n", cwd);
+    // Initialize current_dir_name to NULL before first assignment
+    current_dir_name = NULL;
     current_dir_name = get_current_dir_name_only(); // Formata a string da pasta atual para exibição em type_prompt()
     //printf("Current Dir: %s\n", current_dir_name);
     uid_t uid = geteuid(); // Adquire a ID efetiva do usuário que chamou o shell
@@ -450,7 +471,7 @@ char * get_current_dir_name_only ()
 {
     char aux_string[BUFSIZ];
     getcwd(aux_string, BUFSIZ); // Armazena diretório atual
-    char *aux;
+    char *aux = NULL;
     char *token = strtok(aux_string, "/"); // Cria primeiro token (separador "/") e mantém o ponteiro aux_string em estado interno.
     for (;;) {
         token = strtok(NULL, "/"); // Adiciona mais um token do ponteiro em estado interno (aux_string).
@@ -458,5 +479,16 @@ char * get_current_dir_name_only ()
             break;
         aux = token;
     }
-    return aux;
+    
+    // Fix dangling pointer vulnerability by allocating memory and copying the string
+    if (aux != NULL) {
+        char *result = strdup(aux); // allocate memory and copy the string
+        if (result == NULL) {
+            // Handle memory allocation failure
+            fprintf(stderr, "Memory allocation failed in get_current_dir_name_only\n");
+            return "";
+        }
+        return result;
+    }
+    return "";
 }
